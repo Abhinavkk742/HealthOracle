@@ -20,8 +20,13 @@ tfliteTaskVision = "0.4.4"
 coil = "2.7.0"
 room = "2.6.1"
 datastore = "1.1.1"
+accompanist = "0.36.0"
 
 [libraries]
+#accompanist
+
+accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
+
 # Core
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }

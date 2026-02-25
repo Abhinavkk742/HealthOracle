@@ -51,6 +51,8 @@ android {
 }
 
 dependencies {
+    implementation(libs.accompanist.permissions)
+
     // Core
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)

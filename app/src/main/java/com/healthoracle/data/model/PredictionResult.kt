@@ -1,4 +1,7 @@
 package com.healthoracle.data.model
 
-class PredictionResult {
-}
+data class PredictionResult(
+    val label: String,
+    val confidence: Float,
+    val allResults: List<Pair<String, Float>> = emptyList()
+)

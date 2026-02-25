@@ -2,16 +2,18 @@ package com.healthoracle.presentation.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BloodType
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,7 +67,13 @@ fun HomeScreen(
             HomeFeatureButton(
                 label = "Skin Disease Identifier",
                 description = "Capture or upload a skin image for AI diagnosis",
-                icon = { Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(28.dp)) },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp)
+                    )
+                },
                 onClick = onNavigateToSkinDisease
             )
 
@@ -74,7 +82,13 @@ fun HomeScreen(
             HomeFeatureButton(
                 label = "Diabetes Predictor",
                 description = "Enter health metrics to assess diabetes risk",
-                icon = { Icon(Icons.Default.BloodType, contentDescription = null, modifier = Modifier.size(28.dp)) },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.MonitorHeart,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp)
+                    )
+                },
                 onClick = onNavigateToDiabetes
             )
 
@@ -83,7 +97,13 @@ fun HomeScreen(
             HomeFeatureButton(
                 label = "Community Forum",
                 description = "Connect, share, and learn with others",
-                icon = { Icon(Icons.Default.Forum, contentDescription = null, modifier = Modifier.size(28.dp)) },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Forum,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp)
+                    )
+                },
                 onClick = onNavigateToForum
             )
         }
@@ -105,11 +125,24 @@ private fun HomeFeatureButton(
         shape = MaterialTheme.shapes.large,
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
     ) {
-        icon()
-        Spacer(modifier = Modifier.size(12.dp))
-        Column(horizontalAlignment = Alignment.Start) {
-            Text(text = label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(text = description, style = MaterialTheme.typography.bodySmall)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            icon()
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(horizontalAlignment = Alignment.Start) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
