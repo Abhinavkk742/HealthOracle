@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "663747176207",
+    "project_id": "healthoracle-f0693",
+    "storage_bucket": "healthoracle-f0693.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:663747176207:android:0c15be3e21703f9db4407a",
+        "android_client_info": {
+          "package_name": "com.healthoracle"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1bLp-bcMBW-KaIrsR2KLxg3bt_OLQltk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
