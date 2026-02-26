@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import com.healthoracle.data.local.DiabetesClassifier
 import com.healthoracle.data.local.SkinDiseaseClassifier
 import com.healthoracle.data.remote.AiApiService
 import dagger.Module
@@ -27,6 +28,12 @@ object AppModule {
     fun provideSkinDiseaseClassifier(
         @ApplicationContext context: Context
     ): SkinDiseaseClassifier = SkinDiseaseClassifier(context)
+
+    @Provides
+    @Singleton
+    fun provideDiabetesClassifier(
+        @ApplicationContext context: Context
+    ): DiabetesClassifier = DiabetesClassifier(context)
 
     @Provides
     @Singleton
