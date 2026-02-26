@@ -4,29 +4,33 @@ import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.POST
 
-data class AiRequest(
-    val model: String = "gpt-3.5-turbo",
-    val messages: List<AiMessage>,
-    val max_tokens: Int = 1000
+// Gemini Request Models
+data class GeminiRequest(
+    val contents: List<GeminiContent>
 )
 
-data class AiMessage(
-    val role: String,
-    val content: String
+data class GeminiContent(
+    val parts: List<GeminiPart>
 )
 
-data class AiResponse(
-    val choices: List<AiChoice>
+data class GeminiPart(
+    val text: String
 )
 
-data class AiChoice(
-    val message: AiMessage
+// Gemini Response Models
+data class GeminiResponse(
+    val candidates: List<GeminiCandidate>?
+)
+
+data class GeminiCandidate(
+    val content: GeminiContent?
 )
 
 interface AiApiService {
-    @POST("v1/chat/completions")
+    // Using Gemini 1.5 Flash for fast, efficient text generation
+    @POST("v1beta/models/gemini-1.5-flash:generateContent")
     suspend fun getHealthSuggestions(
-        @Header("Authorization") apiKey: String,
-        @Body request: AiRequest
-    ): AiResponse
+        @Header("x-goog-api-key") apiKey: String,
+        @Body request: GeminiRequest
+    ): GeminiResponse
 }

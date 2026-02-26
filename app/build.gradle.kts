@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,6 +8,14 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
 }
+
+// Read the local.properties file to get the API key
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+val aiApiKey: String = localProperties.getProperty("AI_API_KEY") ?: ""
 
 android {
     namespace = "com.healthoracle"
@@ -17,7 +27,11 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Expose the API key to BuildConfig
+        buildConfigField("String", "AI_API_KEY", "\"$aiApiKey\"")
     }
 
     buildTypes {
@@ -98,7 +112,6 @@ dependencies {
     implementation(libs.tflite.support)
     implementation(libs.tflite.metadata)
     implementation(libs.tflite.select.ops)
-
 
     // Coil
     implementation(libs.coil.compose)
