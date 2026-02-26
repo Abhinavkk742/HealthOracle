@@ -66,15 +66,18 @@ class DiabetesClassifier @Inject constructor(
 
         val score = outputBuffer[0][0]
         val isDiabetic = score >= 0.5f
-        val confidence = if (isDiabetic) score else 1f - score
         val riskLevel = when {
-            score < 0.3f -> "Low Risk"
-            score < 0.5f -> "Moderate Risk"
-            score < 0.7f -> "High Risk"
-            else         -> "Very High Risk"
+            score >= 0.70f -> "High Risk"
+            score >= 0.40f -> "Borderline / Prediabetes Risk"
+            else           -> "Low Risk"
         }
 
-        return DiabetesResult(isDiabetic, confidence, riskLevel)
+        return DiabetesResult(
+            isDiabetic = isDiabetic,
+            confidence = score,        // raw probability, not flipped
+            riskLevel = riskLevel
+        )
+
     }
 
     fun close() {
