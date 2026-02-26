@@ -96,7 +96,9 @@ dependencies {
     // TensorFlow Lite
     implementation(libs.tflite)
     implementation(libs.tflite.support)
-    implementation(libs.tflite.task.vision)
+    implementation(libs.tflite.metadata)
+    implementation(libs.tflite.select.ops)
+
 
     // Coil
     implementation(libs.coil.compose)

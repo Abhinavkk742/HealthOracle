@@ -16,17 +16,12 @@ gson = "2.11.0"
 firebaseBom = "33.7.0"
 tflite = "2.16.1"
 tfliteSupport = "0.4.4"
-tfliteTaskVision = "0.4.4"
 coil = "2.7.0"
 room = "2.6.1"
 datastore = "1.1.1"
 accompanist = "0.36.0"
 
 [libraries]
-#accompanist
-
-accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
-
 # Core
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
@@ -70,18 +65,22 @@ firebase-storage = { group = "com.google.firebase", name = "firebase-storage-ktx
 # TensorFlow Lite
 tflite = { group = "org.tensorflow", name = "tensorflow-lite", version.ref = "tflite" }
 tflite-support = { group = "org.tensorflow", name = "tensorflow-lite-support", version.ref = "tfliteSupport" }
-tflite-task-vision = { group = "org.tensorflow", name = "tensorflow-lite-task-vision", version.ref = "tfliteTaskVision" }
+tflite-metadata = { group = "org.tensorflow", name = "tensorflow-lite-metadata", version.ref = "tfliteSupport" }
+tflite-select-ops = { group = "org.tensorflow", name = "tensorflow-lite-select-tf-ops", version.ref = "tflite" }
 
-# Coil (Image Loading)
+# Coil
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
-# Room (local caching)
+# Room
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 # DataStore
 datastore-prefs = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
+# Accompanist
+accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
