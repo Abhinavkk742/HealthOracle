@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,7 +57,7 @@ fun DiabetesScreen(
             TopAppBar(
                 title = { Text("Diabetes Predictor", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {  // ✅ FIXED
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -160,7 +161,30 @@ fun DiabetesScreen(
                 enter = fadeIn() + slideInVertically()
             ) {
                 uiState.result?.let { result ->
-                    ResultCard(result)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        ResultCard(result)
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Added the AI Suggestion Button Here
+                        Button(
+                            onClick = {
+                                val conditionLabel = if (result.isDiabetic) "High Risk of Diabetes" else "Low Risk of Diabetes"
+                                onNavigateToAiSuggestion(conditionLabel)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Icon(Icons.Default.Psychology, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Get AI Health Suggestions", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
 

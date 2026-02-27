@@ -33,7 +33,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            // Base URL for Google Gemini API
+            // Ensuring the Base URL is exactly correct for Gemini
             .baseUrl("https://generativelanguage.googleapis.com/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())

@@ -1,8 +1,8 @@
 package com.healthoracle.data.remote
 
 import retrofit2.http.Body
-import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Url
 
 // Gemini Request Models
 data class GeminiRequest(
@@ -27,10 +27,10 @@ data class GeminiCandidate(
 )
 
 interface AiApiService {
-    // Using Gemini 1.5 Flash for fast, efficient text generation
-    @POST("v1beta/models/gemini-1.5-flash:generateContent")
+    // Using @Url bypasses Base URL issues and stops Retrofit from breaking the colon (:)
+    @POST
     suspend fun getHealthSuggestions(
-        @Header("x-goog-api-key") apiKey: String,
+        @Url fullUrl: String,
         @Body request: GeminiRequest
     ): GeminiResponse
 }

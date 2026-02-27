@@ -123,4 +123,7 @@ dependencies {
 
     // DataStore
     implementation(libs.datastore.prefs)
+
+    // ✅ NEW: Official Google Generative AI SDK
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 }
