@@ -12,7 +12,20 @@
           "package_name": "com.healthoracle"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "663747176207-iom41bmr20a56vdciedpg57pr45rrc17.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.healthoracle",
+            "certificate_hash": "b49f136639e65c7fc0357e74db3077ae4242cc15"
+          }
+        },
+        {
+          "client_id": "663747176207-k415g2j6e4ik88k80aqabl2rvcoao2ej.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC1bLp-bcMBW-KaIrsR2KLxg3bt_OLQltk"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "663747176207-k415g2j6e4ik88k80aqabl2rvcoao2ej.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

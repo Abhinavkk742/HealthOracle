@@ -120,7 +120,7 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
-
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
     // DataStore
     implementation(libs.datastore.prefs)
 
