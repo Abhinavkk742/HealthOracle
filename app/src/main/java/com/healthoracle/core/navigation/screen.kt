@@ -1,8 +1,9 @@
 package com.healthoracle.core.navigation
 
 sealed class Screen(val route: String) {
-    // Phase 4: Onboarding
+    // Phase 4: Onboarding & Settings
     data object Onboarding : Screen("onboarding")
+    data object Settings : Screen("settings")
 
     // Phase 1: Auth & Profile Screens
     data object Login : Screen("login")

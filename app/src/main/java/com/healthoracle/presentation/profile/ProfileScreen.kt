@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +32,7 @@ import java.util.Locale
 fun ProfileScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    onNavigateToSettings: () -> Unit, // NEW PARAMETER
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -39,12 +41,10 @@ fun ProfileScreen(
     var height by remember(uiState.profile) { mutableStateOf(if (uiState.profile.heightCm == 0f) "" else uiState.profile.heightCm.toString()) }
     var weight by remember(uiState.profile) { mutableStateOf(if (uiState.profile.weightKg == 0f) "" else uiState.profile.weightKg.toString()) }
 
-    // --- NEW: Gender Dropdown State ---
     var gender by remember(uiState.profile) { mutableStateOf(if (uiState.profile.gender.isEmpty()) "Male" else uiState.profile.gender) }
     var expandedGender by remember { mutableStateOf(false) }
     val genderOptions = listOf("Male", "Female", "Other")
 
-    // --- NEW: Date of Birth & Age Logic ---
     var dob by remember(uiState.profile) { mutableStateOf(uiState.profile.dob) }
     var calculatedAge by remember(uiState.profile) { mutableIntStateOf(uiState.profile.age) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -62,16 +62,14 @@ fun ProfileScreen(
                 TextButton(onClick = {
                     showDatePicker = false
                     datePickerState.selectedDateMillis?.let { millis ->
-                        // Format the selected date to DD/MM/YYYY
                         val calendar = Calendar.getInstance().apply { timeInMillis = millis }
                         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                         dob = sdf.format(calendar.time)
 
-                        // Automatically calculate the exact age
                         val today = Calendar.getInstance()
                         var age = today.get(Calendar.YEAR) - calendar.get(Calendar.YEAR)
                         if (today.get(Calendar.DAY_OF_YEAR) < calendar.get(Calendar.DAY_OF_YEAR)) {
-                            age-- // Subtract a year if they haven't had their birthday yet this year
+                            age--
                         }
                         calculatedAge = age.coerceAtLeast(0)
                     }
@@ -93,9 +91,11 @@ fun ProfileScreen(
                     IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { viewModel.logout(onLogoutComplete = onNavigateToLogin) }
-                    ) {
+                    // NEW: Settings Button
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = { viewModel.logout(onLogoutComplete = onNavigateToLogin) }) {
                         Icon(Icons.Default.Logout, contentDescription = "Logout", tint = MaterialTheme.colorScheme.error)
                     }
                 },
@@ -136,15 +136,12 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // --- NEW: Date of Birth Field ---
                 OutlinedTextField(
                     value = if (dob.isNotEmpty()) "$dob (Age: $calculatedAge)" else "",
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Date of Birth") },
-                    trailingIcon = {
-                        Icon(Icons.Default.CalendarToday, contentDescription = "Select Date")
-                    },
+                    trailingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = "Select Date") },
                     interactionSource = dobInteractionSource,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
@@ -152,7 +149,6 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // --- NEW: Gender Dropdown ---
                 ExposedDropdownMenuBox(
                     expanded = expandedGender,
                     onExpandedChange = { expandedGender = !expandedGender }
@@ -164,9 +160,7 @@ fun ProfileScreen(
                         label = { Text("Gender") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGender) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
                         shape = RoundedCornerShape(12.dp)
                     )
                     ExposedDropdownMenu(
@@ -226,9 +220,7 @@ fun ProfileScreen(
                         val parsedWeight = weight.toFloatOrNull() ?: 0f
                         viewModel.saveProfile(name, dob, calculatedAge, gender, parsedHeight, parsedWeight)
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {

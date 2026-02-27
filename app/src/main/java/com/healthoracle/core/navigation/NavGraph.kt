@@ -79,9 +79,22 @@ fun HealthOracleNavGraph(
         composable(route = Screen.Profile.route) {
             com.healthoracle.presentation.profile.ProfileScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }, // NEW!
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // NEW: Settings Route Integration
+        composable(route = Screen.Settings.route) {
+            com.healthoracle.presentation.settings.SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true } // Clear the entire app backstack!
                     }
                 }
             )
