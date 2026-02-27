@@ -3,6 +3,11 @@ package com.healthoracle
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier // <-- THIS IS THE MISSING IMPORT!
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
 import com.healthoracle.core.navigation.HealthOracleNavGraph
@@ -14,11 +19,10 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+
         super.onCreate(savedInstanceState)
 
-        // --- SMART ROUTING ---
-        // 1. Did they finish the tutorial?
-        // 2. Are they logged in?
         val startDestination = if (!OnboardingUtils.isOnboardingComplete(this)) {
             Screen.Onboarding.route
         } else if (FirebaseAuth.getInstance().currentUser != null) {
@@ -29,11 +33,16 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             HealthOracleTheme {
-                val navController = rememberNavController()
-                HealthOracleNavGraph(
-                    navController = navController,
-                    startDestination = startDestination
-                )
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val navController = rememberNavController()
+                    HealthOracleNavGraph(
+                        navController = navController,
+                        startDestination = startDestination
+                    )
+                }
             }
         }
     }

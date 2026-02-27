@@ -66,7 +66,7 @@ android {
 
 dependencies {
     implementation(libs.accompanist.permissions)
-
+    implementation("androidx.core:core-splashscreen:1.0.1")
     // Core
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
