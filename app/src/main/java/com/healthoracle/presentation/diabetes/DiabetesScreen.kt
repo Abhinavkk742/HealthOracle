@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -138,7 +139,7 @@ fun UploadReportView(uiState: DiabetesUiState, viewModel: DiabetesViewModel) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp, bottom = 32.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
 
         Button(
@@ -440,14 +441,21 @@ fun SteppedSlider(label: String, value: Float, steps: List<String>, valueRange: 
     }
 }
 
+// --- UPDATED RESULT CARD WITH SPEEDOMETER ---
 @Composable
 fun ResultCard(result: DiabetesResult) {
     val isDiabetic = result.isDiabetic
     val bgColor = if (isDiabetic) MaterialTheme.colorScheme.errorContainer else Color(0xFFE8F5E9)
     val textColor = if (isDiabetic) MaterialTheme.colorScheme.onErrorContainer else Color(0xFF2E7D32)
 
-    // Fixed: Cleanly formatting the confidence variable outside the Text composable
-    val confidenceText = String.format(java.util.Locale.US, "%.1f", result.confidence * 100)
+    // Dynamic math to convert confidence to a 0-100 sweep percentage
+    val riskPercentage = if (isDiabetic) {
+        (result.confidence * 100).toFloat().coerceAtLeast(60f) // Push into red/yellow zone
+    } else {
+        ((1f - result.confidence) * 100).toFloat().coerceAtMost(40f) // Keep in the green zone
+    }
+
+    val resultTitle = if (isDiabetic) "High Risk Detected" else "Low Risk Detected"
 
     Card(
         modifier = Modifier
@@ -459,12 +467,27 @@ fun ResultCard(result: DiabetesResult) {
         Column(
             modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(text = if (isDiabetic) "⚠️ Diabetic Risk Detected" else "✅ No Diabetes Detected", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
-            Text(text = "Confidence: $confidenceText%", fontSize = 14.sp, color = textColor)
-            Text(text = "Risk Level: ${result.riskLevel}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = textColor)
-            Text(text = "⚕️ This is a screening tool only. Consult a doctor for diagnosis.", fontSize = 11.sp, color = textColor.copy(alpha = 0.7f))
+            // Drop in the new gauge right at the top!
+            SpeedometerGauge(
+                riskPercentage = riskPercentage,
+                resultText = resultTitle
+            )
+
+            Text(
+                text = "Risk Level: ${result.riskLevel}",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = textColor
+            )
+
+            Text(
+                text = "⚕️ This is a screening tool only. Consult a doctor for diagnosis.",
+                fontSize = 12.sp,
+                color = textColor.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
