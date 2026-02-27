@@ -56,13 +56,14 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun saveProfile(name: String, age: Int, gender: String, height: Float, weight: Float) {
+    // NEW: Added dob parameter
+    fun saveProfile(name: String, dob: String, age: Int, gender: String, height: Float, weight: Float) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, saveSuccess = false, error = null)
             val userId = auth.currentUser?.uid ?: return@launch
 
             try {
-                val profileToSave = UserProfile(userId, name, age, gender, height, weight)
+                val profileToSave = UserProfile(userId, name, dob, age, gender, height, weight)
                 firestore.collection("users").document(userId).set(profileToSave).await()
 
                 _uiState.value = _uiState.value.copy(
