@@ -260,19 +260,19 @@ fun ManualEntryView(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         SectionHeader("❤️ Cardiovascular")
-        BinarySlider("High Blood Pressure", highBP) { highBP = it }
-        BinarySlider("High Cholesterol", highChol) { highChol = it }
-        BinarySlider("Cholesterol Check (last 5 yrs)", cholCheck) { cholCheck = it }
-        BinarySlider("Heart Disease or Attack", heartDisease) { heartDisease = it }
-        BinarySlider("Stroke History", stroke) { stroke = it }
+        BinarySwitch("High Blood Pressure", highBP) { highBP = it }
+        BinarySwitch("High Cholesterol", highChol) { highChol = it }
+        BinarySwitch("Cholesterol Check (last 5 yrs)", cholCheck) { cholCheck = it }
+        BinarySwitch("Heart Disease or Attack", heartDisease) { heartDisease = it }
+        BinarySwitch("Stroke History", stroke) { stroke = it }
 
         SectionHeader("🏃 Lifestyle")
         ContinuousSlider("BMI", bmi, 10f, 80f, "%.0f") { bmi = it }
-        BinarySlider("Smoker (100+ cigarettes lifetime)", smoker) { smoker = it }
-        BinarySlider("Heavy Alcohol Consumption", hvyAlcohol) { hvyAlcohol = it }
-        BinarySlider("Physical Activity (last 30 days)", physActivity) { physActivity = it }
-        BinarySlider("Fruits (1+ per day)", fruits) { fruits = it }
-        BinarySlider("Vegetables (1+ per day)", veggies) { veggies = it }
+        BinarySwitch("Smoker (100+ cigarettes lifetime)", smoker) { smoker = it }
+        BinarySwitch("Heavy Alcohol Consumption", hvyAlcohol) { hvyAlcohol = it }
+        BinarySwitch("Physical Activity (last 30 days)", physActivity) { physActivity = it }
+        BinarySwitch("Fruits (1+ per day)", fruits) { fruits = it }
+        BinarySwitch("Vegetables (1+ per day)", veggies) { veggies = it }
 
         SectionHeader("🏥 Health Status")
         SteppedSlider(
@@ -283,12 +283,12 @@ fun ManualEntryView(
         ) { genHlth = it }
         ContinuousSlider("Mental Unhealthy Days (last 30)", mentHlth, 0f, 30f, "%.0f") { mentHlth = it }
         ContinuousSlider("Physical Unhealthy Days (last 30)", physHlth, 0f, 30f, "%.0f") { physHlth = it }
-        BinarySlider("Difficulty Walking / Climbing Stairs", diffWalk) { diffWalk = it }
+        BinarySwitch("Difficulty Walking / Climbing Stairs", diffWalk) { diffWalk = it }
 
         SectionHeader("👤 Demographics")
-        BinarySlider("Any Healthcare Coverage", anyHealthcare) { anyHealthcare = it }
-        BinarySlider("Couldn't See Doctor Due to Cost", noDocbcCost) { noDocbcCost = it }
-        BinarySlider("Sex (0 = Female, 1 = Male)", sex) { sex = it }
+        BinarySwitch("Any Healthcare Coverage", anyHealthcare) { anyHealthcare = it }
+        BinarySwitch("Couldn't See Doctor Due to Cost", noDocbcCost) { noDocbcCost = it }
+        BinarySwitch("Male (Turn off for Female)", sex) { sex = it }
         SteppedSlider(
             label = "Age Group",
             value = age,
@@ -393,20 +393,26 @@ fun SectionHeader(title: String) {
     HorizontalDivider(color = MaterialTheme.colorScheme.primaryContainer)
 }
 
+// --- NEW: Binary Switch for a much better user experience! ---
 @Composable
-fun BinarySlider(label: String, value: Float, onValueChange: (Float) -> Unit) {
-    val displayValue = if (value >= 0.5f) "Yes" else "No"
-    val displayColor = if (value >= 0.5f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            Text(displayValue, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = displayColor)
-        }
-        Slider(value = value, onValueChange = onValueChange, valueRange = 0f..1f, steps = 0, modifier = Modifier.fillMaxWidth())
+fun BinarySwitch(label: String, value: Float, onValueChange: (Float) -> Unit) {
+    val isChecked = value >= 0.5f
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Switch(
+            checked = isChecked,
+            onCheckedChange = { onValueChange(if (it) 1f else 0f) },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        )
     }
 }
 
@@ -441,18 +447,16 @@ fun SteppedSlider(label: String, value: Float, steps: List<String>, valueRange: 
     }
 }
 
-// --- UPDATED RESULT CARD WITH SPEEDOMETER ---
 @Composable
 fun ResultCard(result: DiabetesResult) {
     val isDiabetic = result.isDiabetic
     val bgColor = if (isDiabetic) MaterialTheme.colorScheme.errorContainer else Color(0xFFE8F5E9)
     val textColor = if (isDiabetic) MaterialTheme.colorScheme.onErrorContainer else Color(0xFF2E7D32)
 
-    // Dynamic math to convert confidence to a 0-100 sweep percentage
     val riskPercentage = if (isDiabetic) {
-        (result.confidence * 100).toFloat().coerceAtLeast(60f) // Push into red/yellow zone
+        (result.confidence * 100).toFloat().coerceAtLeast(60f)
     } else {
-        ((1f - result.confidence) * 100).toFloat().coerceAtMost(40f) // Keep in the green zone
+        ((1f - result.confidence) * 100).toFloat().coerceAtMost(40f)
     }
 
     val resultTitle = if (isDiabetic) "High Risk Detected" else "Low Risk Detected"
@@ -469,7 +473,6 @@ fun ResultCard(result: DiabetesResult) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Drop in the new gauge right at the top!
             SpeedometerGauge(
                 riskPercentage = riskPercentage,
                 resultText = resultTitle
