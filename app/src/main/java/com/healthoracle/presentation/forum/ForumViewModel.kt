@@ -33,14 +33,35 @@ class ForumViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                // 1. Fetch the raw posts
                 val snapshot = firestore.collection("posts")
                     .orderBy("timestampMillis", Query.Direction.DESCENDING)
                     .get().await()
 
-                val postList = snapshot.documents.mapNotNull { doc ->
+                val rawPosts = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(Post::class.java)?.copy(id = doc.id)
                 }
-                _posts.value = postList
+
+                // 2. Gather all unique author IDs from these posts
+                val uniqueAuthorIds = rawPosts.map { it.authorId }.toSet()
+                val latestAuthorNames = mutableMapOf<String, String>()
+
+                // 3. Fetch the absolute latest profile name for each author
+                for (id in uniqueAuthorIds) {
+                    try {
+                        val userDoc = firestore.collection("users").document(id).get().await()
+                        latestAuthorNames[id] = userDoc.getString("name") ?: "Anonymous"
+                    } catch (e: Exception) {
+                        // Skip if network fails, we'll just use the old name
+                    }
+                }
+
+                // 4. Update the posts with the fresh names before displaying!
+                val updatedPosts = rawPosts.map { post ->
+                    post.copy(authorName = latestAuthorNames[post.authorId] ?: post.authorName)
+                }
+
+                _posts.value = updatedPosts
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -55,7 +76,6 @@ class ForumViewModel @Inject constructor(
         viewModelScope.launch {
             _isCreating.value = true
             try {
-                // Fetch the user's real name from their profile!
                 var authorName = "Anonymous"
                 val userDoc = firestore.collection("users").document(userId).get().await()
                 if (userDoc.exists()) {
@@ -69,7 +89,6 @@ class ForumViewModel @Inject constructor(
                     description = description
                 )
 
-                // Save to the global 'posts' collection
                 firestore.collection("posts").add(newPost).await()
                 onSuccess()
             } catch (e: Exception) {

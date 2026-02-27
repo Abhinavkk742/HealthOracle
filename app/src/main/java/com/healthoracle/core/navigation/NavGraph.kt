@@ -145,8 +145,10 @@ fun HealthOracleNavGraph(
                 navArgument("postId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val postId = backStackEntry.arguments?.getString("postId") ?: ""
-            // PostDetailScreen placeholder
+            // This connects the new screen!
+            com.healthoracle.presentation.forum.PostDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

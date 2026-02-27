@@ -1,4 +1,10 @@
 package com.healthoracle.data.model
 
-class Comment {
-}
+data class Comment(
+    val id: String = "",
+    val postId: String = "",
+    val authorId: String = "",
+    val authorName: String = "Anonymous",
+    val text: String = "",
+    val timestampMillis: Long = System.currentTimeMillis()
+)
