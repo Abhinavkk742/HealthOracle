@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.rounded.ArrowForwardIos
@@ -28,7 +29,8 @@ fun HomeScreen(
     onNavigateToSkinDisease: () -> Unit,
     onNavigateToDiabetes: () -> Unit,
     onNavigateToForum: () -> Unit,
-    onNavigateToProfile: () -> Unit // NEW PARAMETER
+    onNavigateToProfile: () -> Unit,
+    onNavigateToHistory: () -> Unit // NEW PARAMETER
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -36,7 +38,6 @@ fun HomeScreen(
             TopAppBar(
                 title = { },
                 actions = {
-                    // NEW: Profile Button
                     IconButton(onClick = onNavigateToProfile) {
                         Icon(
                             imageVector = Icons.Default.Person,
@@ -94,6 +95,23 @@ fun HomeScreen(
                 subtitle = "Assess your risk metrics",
                 icon = Icons.Default.MonitorHeart,
                 onClick = onNavigateToDiabetes
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                text = "My Data",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            // NEW: History Dashboard Card
+            DashboardCard(
+                title = "My History",
+                subtitle = "View saved AI timetables",
+                icon = Icons.Default.History,
+                onClick = onNavigateToHistory
             )
 
             Spacer(modifier = Modifier.height(32.dp))

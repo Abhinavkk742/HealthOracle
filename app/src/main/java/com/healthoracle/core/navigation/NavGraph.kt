@@ -23,7 +23,6 @@ import com.healthoracle.presentation.skin.SkinDiseaseScreen
 fun HealthOracleNavGraph(
     navController: NavHostController
 ) {
-    // Smart Start Destination: If logged in, go to Home. Otherwise, Login.
     val currentUser = FirebaseAuth.getInstance().currentUser
     val startDestination = if (currentUser != null) Screen.Home.route else Screen.Login.route
 
@@ -36,12 +35,11 @@ fun HealthOracleNavGraph(
         popExitTransition = { slideOutHorizontally(targetOffsetX = { it }) + fadeOut() }
     ) {
 
-        // --- AUTH SCREENS ---
         composable(route = Screen.Login.route) {
             LoginScreen(
                 onNavigateToHome = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true } // Removes login from backstack
+                        popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
                 onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) }
@@ -59,13 +57,13 @@ fun HealthOracleNavGraph(
             )
         }
 
-        // --- MAIN APP SCREENS ---
         composable(route = Screen.Home.route) {
             HomeScreen(
                 onNavigateToSkinDisease = { navController.navigate(Screen.SkinDisease.route) },
                 onNavigateToDiabetes = { navController.navigate(Screen.Diabetes.route) },
                 onNavigateToForum = { navController.navigate(Screen.Forum.route) },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) } // NEW LINE
+                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                onNavigateToHistory = { navController.navigate(Screen.History.route) } // NEW LINE
             )
         }
 
@@ -74,9 +72,16 @@ fun HealthOracleNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true } // Clears entire backstack on logout
+                        popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        // NEW: History Route Integration
+        composable(route = Screen.History.route) {
+            com.healthoracle.presentation.history.HistoryScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
