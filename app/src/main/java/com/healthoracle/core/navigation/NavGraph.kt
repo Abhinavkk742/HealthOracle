@@ -10,22 +10,20 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.google.firebase.auth.FirebaseAuth
 import com.healthoracle.presentation.aisuggestion.AiSuggestionScreen
 import com.healthoracle.presentation.auth.LoginScreen
 import com.healthoracle.presentation.auth.SignUpScreen
 import com.healthoracle.presentation.diabetes.DiabetesScreen
 import com.healthoracle.presentation.forum.ForumScreen
 import com.healthoracle.presentation.home.HomeScreen
+import com.healthoracle.presentation.onboarding.OnboardingScreen
 import com.healthoracle.presentation.skin.SkinDiseaseScreen
 
 @Composable
 fun HealthOracleNavGraph(
-    navController: NavHostController
+    navController: NavHostController,
+    startDestination: String // NEW: Passed in dynamically
 ) {
-    val currentUser = FirebaseAuth.getInstance().currentUser
-    val startDestination = if (currentUser != null) Screen.Home.route else Screen.Login.route
-
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -34,6 +32,17 @@ fun HealthOracleNavGraph(
         popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }) + fadeIn() },
         popExitTransition = { slideOutHorizontally(targetOffsetX = { it }) + fadeOut() }
     ) {
+
+        // --- ONBOARDING ---
+        composable(route = Screen.Onboarding.route) {
+            OnboardingScreen(
+                onFinishOnboarding = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                }
+            )
+        }
 
         composable(route = Screen.Login.route) {
             LoginScreen(
@@ -63,7 +72,7 @@ fun HealthOracleNavGraph(
                 onNavigateToDiabetes = { navController.navigate(Screen.Diabetes.route) },
                 onNavigateToForum = { navController.navigate(Screen.Forum.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                onNavigateToHistory = { navController.navigate(Screen.History.route) } // NEW LINE
+                onNavigateToHistory = { navController.navigate(Screen.History.route) }
             )
         }
 
@@ -78,7 +87,6 @@ fun HealthOracleNavGraph(
             )
         }
 
-        // NEW: History Route Integration
         composable(route = Screen.History.route) {
             com.healthoracle.presentation.history.HistoryScreen(
                 onNavigateBack = { navController.popBackStack() }
@@ -145,7 +153,6 @@ fun HealthOracleNavGraph(
                 navArgument("postId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            // This connects the new screen!
             com.healthoracle.presentation.forum.PostDetailScreen(
                 onNavigateBack = { navController.popBackStack() }
             )

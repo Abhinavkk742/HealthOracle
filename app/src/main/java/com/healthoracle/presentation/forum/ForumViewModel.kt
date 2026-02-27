@@ -29,11 +29,14 @@ class ForumViewModel @Inject constructor(
     private val _isCreating = MutableStateFlow(false)
     val isCreating: StateFlow<Boolean> = _isCreating.asStateFlow()
 
+    // Expose the current user ID to the UI so we know which icons to fill in
+    val currentUserId: String?
+        get() = auth.currentUser?.uid
+
     fun loadPosts() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // 1. Fetch the raw posts
                 val snapshot = firestore.collection("posts")
                     .orderBy("timestampMillis", Query.Direction.DESCENDING)
                     .get().await()
@@ -42,21 +45,16 @@ class ForumViewModel @Inject constructor(
                     doc.toObject(Post::class.java)?.copy(id = doc.id)
                 }
 
-                // 2. Gather all unique author IDs from these posts
                 val uniqueAuthorIds = rawPosts.map { it.authorId }.toSet()
                 val latestAuthorNames = mutableMapOf<String, String>()
 
-                // 3. Fetch the absolute latest profile name for each author
                 for (id in uniqueAuthorIds) {
                     try {
                         val userDoc = firestore.collection("users").document(id).get().await()
                         latestAuthorNames[id] = userDoc.getString("name") ?: "Anonymous"
-                    } catch (e: Exception) {
-                        // Skip if network fails, we'll just use the old name
-                    }
+                    } catch (e: Exception) {}
                 }
 
-                // 4. Update the posts with the fresh names before displaying!
                 val updatedPosts = rawPosts.map { post ->
                     post.copy(authorName = latestAuthorNames[post.authorId] ?: post.authorName)
                 }
@@ -96,6 +94,69 @@ class ForumViewModel @Inject constructor(
             } finally {
                 _isCreating.value = false
             }
+        }
+    }
+
+    // --- NEW: Toggle Upvote Logic ---
+    fun toggleUpvote(postId: String) {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                val postRef = firestore.collection("posts").document(postId)
+                firestore.runTransaction { transaction ->
+                    val snapshot = transaction.get(postRef)
+                    val post = snapshot.toObject(Post::class.java) ?: return@runTransaction
+
+                    val currentUpvotes = post.upvotedBy.toMutableList()
+                    if (currentUpvotes.contains(userId)) {
+                        currentUpvotes.remove(userId) // Remove like
+                    } else {
+                        currentUpvotes.add(userId) // Add like
+                    }
+
+                    transaction.update(postRef, "upvotedBy", currentUpvotes)
+                }.await()
+
+                // Instantly update UI without reloading the whole feed
+                _posts.value = _posts.value.map {
+                    if (it.id == postId) {
+                        val newUpvotes = it.upvotedBy.toMutableList()
+                        if (newUpvotes.contains(userId)) newUpvotes.remove(userId) else newUpvotes.add(userId)
+                        it.copy(upvotedBy = newUpvotes)
+                    } else it
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    // --- NEW: Toggle Bookmark Logic ---
+    fun toggleBookmark(postId: String) {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                val postRef = firestore.collection("posts").document(postId)
+                firestore.runTransaction { transaction ->
+                    val snapshot = transaction.get(postRef)
+                    val post = snapshot.toObject(Post::class.java) ?: return@runTransaction
+
+                    val currentSaved = post.savedBy.toMutableList()
+                    if (currentSaved.contains(userId)) {
+                        currentSaved.remove(userId)
+                    } else {
+                        currentSaved.add(userId)
+                    }
+
+                    transaction.update(postRef, "savedBy", currentSaved)
+                }.await()
+
+                _posts.value = _posts.value.map {
+                    if (it.id == postId) {
+                        val newSaved = it.savedBy.toMutableList()
+                        if (newSaved.contains(userId)) newSaved.remove(userId) else newSaved.add(userId)
+                        it.copy(savedBy = newSaved)
+                    } else it
+                }
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 }

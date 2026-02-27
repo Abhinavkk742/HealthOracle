@@ -3,6 +3,9 @@ package com.healthoracle.presentation.aisuggestion
 import android.content.Context
 import android.content.Intent
 import android.provider.CalendarContract
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.healthoracle.core.util.PdfGenerator
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -34,6 +39,20 @@ fun AiSuggestionScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+
+    // --- NEW: PDF Saver Launcher ---
+    val pdfLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf"),
+        onResult = { uri ->
+            uri?.let {
+                if (uiState is AiSuggestionUiState.Success) {
+                    val advice = (uiState as AiSuggestionUiState.Success).advice
+                    PdfGenerator.generatePdf(context, it, conditionName, advice)
+                    Toast.makeText(context, "PDF Saved Successfully!", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    )
 
     LaunchedEffect(key1 = conditionName) {
         if (uiState is AiSuggestionUiState.Initial) {
@@ -181,6 +200,28 @@ fun AiSuggestionScreen(
                                 Text("🌙 7 PM", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // --- NEW: Download PDF Button ---
+                        Button(
+                            onClick = {
+                                val safeName = conditionName.replace(" ", "_")
+                                pdfLauncher.launch("HealthOracle_${safeName}_Plan.pdf")
+                            },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                        ) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Download as PDF Document",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
 
@@ -244,7 +285,6 @@ private fun addRoutineToCalendar(context: Context, conditionName: String, timeOf
         timeInMillis
     }
 
-    // Format the date exactly 30 days from now for the RRULE
     val thirtyDaysCalendar = Calendar.getInstance().apply {
         add(Calendar.DAY_OF_YEAR, 31)
     }
@@ -258,8 +298,6 @@ private fun addRoutineToCalendar(context: Context, conditionName: String, timeOf
         putExtra(CalendarContract.Events.DESCRIPTION, timetableText)
         putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, startMillis)
         putExtra(CalendarContract.EXTRA_EVENT_END_TIME, endMillis)
-
-        // Forces the calendar to repeat daily for exactly 30 days
         putExtra(CalendarContract.Events.RRULE, "FREQ=DAILY;UNTIL=$untilDate")
     }
 
