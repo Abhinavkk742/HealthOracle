@@ -9,21 +9,35 @@ import javax.inject.Inject
 class GetAiSuggestionsUseCase @Inject constructor() {
     operator fun invoke(conditionName: String, conditionSource: String): Flow<Result<String>> = flow {
         try {
+            // Highly structured prompt to prevent messy markdown and enforce a beautiful layout
             val prompt = """
-                You are a helpful medical AI assistant. Always include a disclaimer that you are an AI and the user should consult a real doctor for medical advice.
+                You are an empathetic and professional medical AI assistant.
+                The user has received the following health indication: $conditionName (Source: $conditionSource). 
                 
-                The user has been indicated with the following health condition: $conditionName (Source: $conditionSource). 
-                Please create a personalized daily health timetable for them. Include dietary recommendations, recommended activities or lifestyle changes, and any specific precautions they should take. 
-                Format the response clearly with headings and bullet points.
+                Please create a highly organized, easy-to-read personalized daily health timetable and advice guide.
+                
+                CRITICAL FORMATTING RULES:
+                1. DO NOT use markdown characters like ** or *. 
+                2. Use ALL CAPS for section headers.
+                3. Use appropriate emojis for headers and bullet points.
+                4. Use standard dashes (-) for list items.
+                5. Add a blank line between every single section for readability.
+                
+                Please structure your response exactly with these sections:
+                🌅 MORNING ROUTINE
+                ☀️ AFTERNOON ROUTINE
+                🌙 EVENING ROUTINE
+                🥗 DIETARY RECOMMENDATIONS
+                ⚠️ PRECAUTIONS & LIFESTYLE CHANGES
+                
+                Always end with a disclaimer that you are an AI and the user must consult a real doctor for medical advice.
             """.trimIndent()
 
-            // ✅ Updated to the current, active model: gemini-2.5-flash
             val generativeModel = GenerativeModel(
                 modelName = "gemini-2.5-flash",
                 apiKey = BuildConfig.AI_API_KEY
             )
 
-            // Direct call using the official SDK
             val response = generativeModel.generateContent(prompt)
 
             val advice = response.text ?: "No suggestions available at the moment. Please try again later."

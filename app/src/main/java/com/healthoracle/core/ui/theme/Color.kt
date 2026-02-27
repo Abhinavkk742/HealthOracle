@@ -2,10 +2,18 @@ package com.healthoracle.core.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Modern Health Palette
+val PrimaryTeal = Color(0xFF0B877D)
+val SecondaryBlue = Color(0xFF1976D2)
 
-val Purple40 = Color(0xFF6650A4)
-val PurpleGrey40 = Color(0xFF625B71)
-val Pink40 = Color(0xFF7D5260)
+// Light Theme Colors
+val LightBackground = Color(0xFFF5F7FA)
+val LightSurface = Color(0xFFFFFFFF)
+val LightPrimaryContainer = Color(0xFFD7F0ED)
+val LightOnPrimaryContainer = Color(0xFF00201D)
+
+// Dark Theme Colors
+val DarkBackground = Color(0xFF121212)
+val DarkSurface = Color(0xFF1E1E1E)
+val DarkPrimaryContainer = Color(0xFF005049)
+val DarkOnPrimaryContainer = Color(0xFF7CF8EB)
