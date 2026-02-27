@@ -126,9 +126,16 @@ fun HealthOracleNavGraph(
         composable(route = Screen.Forum.route) {
             ForumScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
                 onNavigateToPostDetail = { postId ->
                     navController.navigate(Screen.PostDetail.createRoute(postId))
                 }
+            )
+        }
+
+        composable(route = Screen.CreatePost.route) {
+            com.healthoracle.presentation.forum.CreatePostScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
