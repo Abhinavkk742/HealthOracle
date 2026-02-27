@@ -38,8 +38,6 @@ fun DiabetesScreen(
     viewModel: DiabetesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
-    // Controls which tab we are looking at (0 = Manual, 1 = Upload Report)
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     Scaffold(
@@ -63,7 +61,6 @@ fun DiabetesScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Tab Row Navigation
             TabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = MaterialTheme.colorScheme.background,
@@ -81,7 +78,6 @@ fun DiabetesScreen(
                 )
             }
 
-            // Switch between screens based on the selected tab
             if (selectedTabIndex == 0) {
                 ManualEntryView(uiState, viewModel, onNavigateToAiSuggestion)
             } else {
@@ -101,14 +97,12 @@ fun UploadReportView(uiState: DiabetesUiState, viewModel: DiabetesViewModel) {
         onResult = { uri ->
             imageUri = uri
             uri?.let {
-                // Convert URI to Bitmap to send to AI
                 val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     val source = ImageDecoder.createSource(context.contentResolver, it)
                     ImageDecoder.decodeBitmap(source)
                 } else {
                     MediaStore.Images.Media.getBitmap(context.contentResolver, it)
                 }
-                // Send it to Gemini
                 viewModel.analyzeReport(bitmap)
             }
         }
@@ -162,19 +156,16 @@ fun UploadReportView(uiState: DiabetesUiState, viewModel: DiabetesViewModel) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Loading State
         if (uiState.isReportLoading) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(16.dp))
             Text("Scanning document and analyzing metrics...")
         }
 
-        // Error State
         uiState.reportError?.let { error ->
             Text(text = "Error: $error", color = MaterialTheme.colorScheme.error)
         }
 
-        // Success State (Show the AI Extracted Text)
         AnimatedVisibility(
             visible = uiState.reportResult != null,
             enter = fadeIn() + slideInVertically()
@@ -207,7 +198,6 @@ fun ManualEntryView(
     viewModel: DiabetesViewModel,
     onNavigateToAiSuggestion: (String) -> Unit
 ) {
-    // [Keeping all your existing Manual slider logic intact inside this new wrapper!]
     var highBP by remember { mutableFloatStateOf(0f) }
     var highChol by remember { mutableFloatStateOf(0f) }
     var cholCheck by remember { mutableFloatStateOf(1f) }
@@ -229,6 +219,37 @@ fun ManualEntryView(
     var age by remember { mutableFloatStateOf(5f) }
     var education by remember { mutableFloatStateOf(5f) }
     var income by remember { mutableFloatStateOf(5f) }
+
+    LaunchedEffect(uiState.userProfile) {
+        uiState.userProfile?.let { profile ->
+            if (profile.gender.equals("Male", ignoreCase = true)) sex = 1f
+            else if (profile.gender.equals("Female", ignoreCase = true)) sex = 0f
+
+            if (profile.weightKg > 0 && profile.heightCm > 0) {
+                val heightM = profile.heightCm / 100f
+                val calculatedBmi = profile.weightKg / (heightM * heightM)
+                bmi = calculatedBmi.coerceIn(10f, 80f)
+            }
+
+            if (profile.age > 0) {
+                age = when (profile.age) {
+                    in 0..24 -> 1f
+                    in 25..29 -> 2f
+                    in 30..34 -> 3f
+                    in 35..39 -> 4f
+                    in 40..44 -> 5f
+                    in 45..49 -> 6f
+                    in 50..54 -> 7f
+                    in 55..59 -> 8f
+                    in 60..64 -> 9f
+                    in 65..69 -> 10f
+                    in 70..74 -> 11f
+                    in 75..79 -> 12f
+                    else -> 13f
+                }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -359,7 +380,6 @@ fun ManualEntryView(
     }
 }
 
-// Keeping all your existing helper UI components
 @Composable
 fun SectionHeader(title: String) {
     Text(
@@ -426,8 +446,13 @@ fun ResultCard(result: DiabetesResult) {
     val bgColor = if (isDiabetic) MaterialTheme.colorScheme.errorContainer else Color(0xFFE8F5E9)
     val textColor = if (isDiabetic) MaterialTheme.colorScheme.onErrorContainer else Color(0xFF2E7D32)
 
+    // Fixed: Cleanly formatting the confidence variable outside the Text composable
+    val confidenceText = String.format(java.util.Locale.US, "%.1f", result.confidence * 100)
+
     Card(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
@@ -437,7 +462,7 @@ fun ResultCard(result: DiabetesResult) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(text = if (isDiabetic) "⚠️ Diabetic Risk Detected" else "✅ No Diabetes Detected", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
-            Text(text = "Confidence: ${"%.1f".format(result.confidence * 100)}%", fontSize = 14.sp, color = textColor)
+            Text(text = "Confidence: $confidenceText%", fontSize = 14.sp, color = textColor)
             Text(text = "Risk Level: ${result.riskLevel}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = textColor)
             Text(text = "⚕️ This is a screening tool only. Consult a doctor for diagnosis.", fontSize = 11.sp, color = textColor.copy(alpha = 0.7f))
         }
