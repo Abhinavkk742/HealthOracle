@@ -1,30 +1,24 @@
 package com.healthoracle.presentation.home
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.MonitorHeart
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.rounded.ArrowForwardIos
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -33,18 +27,27 @@ import androidx.compose.ui.unit.dp
 fun HomeScreen(
     onNavigateToSkinDisease: () -> Unit,
     onNavigateToDiabetes: () -> Unit,
-    onNavigateToForum: () -> Unit
+    onNavigateToForum: () -> Unit,
+    onNavigateToProfile: () -> Unit // NEW PARAMETER
 ) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = "HealthOracle",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                title = { },
+                actions = {
+                    // NEW: Profile Button
+                    IconButton(onClick = onNavigateToProfile) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profile",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { innerPadding ->
@@ -52,97 +55,129 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
-                text = "Your AI-Powered Health Companion",
-                style = MaterialTheme.typography.bodyLarge,
+                text = "Hello there,",
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Text(
+                text = "How are you feeling today?",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            HomeFeatureButton(
-                label = "Skin Disease Identifier",
-                description = "Capture or upload a skin image for AI diagnosis",
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.CameraAlt,
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp)
-                    )
-                },
+            Text(
+                text = "Health Diagnostics",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            DashboardCard(
+                title = "Skin Disease Identifier",
+                subtitle = "AI-powered visual diagnosis",
+                icon = Icons.Default.CameraAlt,
                 onClick = onNavigateToSkinDisease
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            HomeFeatureButton(
-                label = "Diabetes Predictor",
-                description = "Enter health metrics to assess diabetes risk",
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.MonitorHeart,
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp)
-                    )
-                },
+            DashboardCard(
+                title = "Diabetes Predictor",
+                subtitle = "Assess your risk metrics",
+                icon = Icons.Default.MonitorHeart,
                 onClick = onNavigateToDiabetes
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            HomeFeatureButton(
-                label = "Community Forum",
-                description = "Connect, share, and learn with others",
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Forum,
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp)
-                    )
-                },
+            Text(
+                text = "Community",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            DashboardCard(
+                title = "Community Forum",
+                subtitle = "Connect, share, and learn",
+                icon = Icons.Default.Forum,
                 onClick = onNavigateToForum
             )
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
 
 @Composable
-private fun HomeFeatureButton(
-    label: String,
-    description: String,
-    icon: @Composable () -> Unit,
+private fun DashboardCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
     onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
+    ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp),
-        shape = MaterialTheme.shapes.large,
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            icon()
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(horizontalAlignment = Alignment.Start) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Rounded.ArrowForwardIos,
+                contentDescription = "Open",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }
