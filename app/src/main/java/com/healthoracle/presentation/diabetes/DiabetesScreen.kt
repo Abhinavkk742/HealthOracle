@@ -1,6 +1,12 @@
 package com.healthoracle.presentation.diabetes
 
-import com.healthoracle.data.local.DiabetesResult
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -10,16 +16,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.healthoracle.data.local.DiabetesResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +39,175 @@ fun DiabetesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // Controls which tab we are looking at (0 = Manual, 1 = Upload Report)
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Diabetes Predictor", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // Tab Row Navigation
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                Tab(
+                    selected = selectedTabIndex == 0,
+                    onClick = { selectedTabIndex = 0 },
+                    text = { Text("Manual Entry", fontWeight = FontWeight.Bold) }
+                )
+                Tab(
+                    selected = selectedTabIndex == 1,
+                    onClick = { selectedTabIndex = 1 },
+                    text = { Text("Upload Report", fontWeight = FontWeight.Bold) }
+                )
+            }
+
+            // Switch between screens based on the selected tab
+            if (selectedTabIndex == 0) {
+                ManualEntryView(uiState, viewModel, onNavigateToAiSuggestion)
+            } else {
+                UploadReportView(uiState, viewModel)
+            }
+        }
+    }
+}
+
+@Composable
+fun UploadReportView(uiState: DiabetesUiState, viewModel: DiabetesViewModel) {
+    val context = LocalContext.current
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            imageUri = uri
+            uri?.let {
+                // Convert URI to Bitmap to send to AI
+                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val source = ImageDecoder.createSource(context.contentResolver, it)
+                    ImageDecoder.decodeBitmap(source)
+                } else {
+                    MediaStore.Images.Media.getBitmap(context.contentResolver, it)
+                }
+                // Send it to Gemini
+                viewModel.analyzeReport(bitmap)
+            }
+        }
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Icon(
+            imageVector = Icons.Default.DocumentScanner,
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "AI Report Analyzer",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+        Text(
+            text = "Upload a photo of your blood test or lab report, and our AI will extract your glucose and HbA1c levels to assess your risk.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp, bottom = 32.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+
+        Button(
+            onClick = {
+                photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        ) {
+            Text("Select Report Image", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Loading State
+        if (uiState.isReportLoading) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Scanning document and analyzing metrics...")
+        }
+
+        // Error State
+        uiState.reportError?.let { error ->
+            Text(text = "Error: $error", color = MaterialTheme.colorScheme.error)
+        }
+
+        // Success State (Show the AI Extracted Text)
+        AnimatedVisibility(
+            visible = uiState.reportResult != null,
+            enter = fadeIn() + slideInVertically()
+        ) {
+            uiState.reportResult?.let { resultText ->
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Text(
+                        text = resultText,
+                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+fun ManualEntryView(
+    uiState: DiabetesUiState,
+    viewModel: DiabetesViewModel,
+    onNavigateToAiSuggestion: (String) -> Unit
+) {
+    // [Keeping all your existing Manual slider logic intact inside this new wrapper!]
     var highBP by remember { mutableFloatStateOf(0f) }
     var highChol by remember { mutableFloatStateOf(0f) }
     var cholCheck by remember { mutableFloatStateOf(1f) }
@@ -52,155 +230,136 @@ fun DiabetesScreen(
     var education by remember { mutableFloatStateOf(5f) }
     var income by remember { mutableFloatStateOf(5f) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Diabetes Predictor", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SectionHeader("❤️ Cardiovascular")
+        BinarySlider("High Blood Pressure", highBP) { highBP = it }
+        BinarySlider("High Cholesterol", highChol) { highChol = it }
+        BinarySlider("Cholesterol Check (last 5 yrs)", cholCheck) { cholCheck = it }
+        BinarySlider("Heart Disease or Attack", heartDisease) { heartDisease = it }
+        BinarySlider("Stroke History", stroke) { stroke = it }
+
+        SectionHeader("🏃 Lifestyle")
+        ContinuousSlider("BMI", bmi, 10f, 80f, "%.0f") { bmi = it }
+        BinarySlider("Smoker (100+ cigarettes lifetime)", smoker) { smoker = it }
+        BinarySlider("Heavy Alcohol Consumption", hvyAlcohol) { hvyAlcohol = it }
+        BinarySlider("Physical Activity (last 30 days)", physActivity) { physActivity = it }
+        BinarySlider("Fruits (1+ per day)", fruits) { fruits = it }
+        BinarySlider("Vegetables (1+ per day)", veggies) { veggies = it }
+
+        SectionHeader("🏥 Health Status")
+        SteppedSlider(
+            label = "General Health",
+            value = genHlth,
+            steps = listOf("Excellent", "Very Good", "Good", "Fair", "Poor"),
+            valueRange = 1f..5f
+        ) { genHlth = it }
+        ContinuousSlider("Mental Unhealthy Days (last 30)", mentHlth, 0f, 30f, "%.0f") { mentHlth = it }
+        ContinuousSlider("Physical Unhealthy Days (last 30)", physHlth, 0f, 30f, "%.0f") { physHlth = it }
+        BinarySlider("Difficulty Walking / Climbing Stairs", diffWalk) { diffWalk = it }
+
+        SectionHeader("👤 Demographics")
+        BinarySlider("Any Healthcare Coverage", anyHealthcare) { anyHealthcare = it }
+        BinarySlider("Couldn't See Doctor Due to Cost", noDocbcCost) { noDocbcCost = it }
+        BinarySlider("Sex (0 = Female, 1 = Male)", sex) { sex = it }
+        SteppedSlider(
+            label = "Age Group",
+            value = age,
+            steps = listOf("18-24","25-29","30-34","35-39","40-44","45-49",
+                "50-54","55-59","60-64","65-69","70-74","75-79","80+"),
+            valueRange = 1f..13f
+        ) { age = it }
+        SteppedSlider(
+            label = "Education Level",
+            value = education,
+            steps = listOf("None","Grades 1-8","Grades 9-11","Grade 12","College 1-3 yrs","College 4+ yrs"),
+            valueRange = 1f..6f
+        ) { education = it }
+        SteppedSlider(
+            label = "Income Level",
+            value = income,
+            steps = listOf("<$10K","$10-15K","$15-20K","$20-25K","$25-35K","$35-50K","$50-75K",">$75K"),
+            valueRange = 1f..8f
+        ) { income = it }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = {
+                viewModel.predict(
+                    highBP, highChol, cholCheck, bmi, smoker, stroke, heartDisease, physActivity,
+                    fruits, veggies, hvyAlcohol, anyHealthcare, noDocbcCost, genHlth, mentHlth, physHlth,
+                    diffWalk, sex, age, education, income
                 )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Predict Diabetes Risk", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        AnimatedVisibility(
+            visible = uiState.result != null,
+            enter = fadeIn() + slideInVertically()
+        ) {
+            uiState.result?.let { result ->
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    ResultCard(result)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            val conditionLabel = if (result.isDiabetic) "High Risk of Diabetes" else "Low Risk of Diabetes"
+                            onNavigateToAiSuggestion(conditionLabel)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        )
+                    ) {
+                        Icon(Icons.Default.Psychology, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Get AI Health Suggestions", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        uiState.error?.let { error ->
+            Text(
+                text = "Error: $error",
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(8.dp)
             )
         }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            SectionHeader("❤️ Cardiovascular")
-            BinarySlider("High Blood Pressure", highBP) { highBP = it }
-            BinarySlider("High Cholesterol", highChol) { highChol = it }
-            BinarySlider("Cholesterol Check (last 5 yrs)", cholCheck) { cholCheck = it }
-            BinarySlider("Heart Disease or Attack", heartDisease) { heartDisease = it }
-            BinarySlider("Stroke History", stroke) { stroke = it }
 
-            SectionHeader("🏃 Lifestyle")
-            ContinuousSlider("BMI", bmi, 10f, 80f, "%.0f") { bmi = it }
-            BinarySlider("Smoker (100+ cigarettes lifetime)", smoker) { smoker = it }
-            BinarySlider("Heavy Alcohol Consumption", hvyAlcohol) { hvyAlcohol = it }
-            BinarySlider("Physical Activity (last 30 days)", physActivity) { physActivity = it }
-            BinarySlider("Fruits (1+ per day)", fruits) { fruits = it }
-            BinarySlider("Vegetables (1+ per day)", veggies) { veggies = it }
-
-            SectionHeader("🏥 Health Status")
-            SteppedSlider(
-                label = "General Health",
-                value = genHlth,
-                steps = listOf("Excellent", "Very Good", "Good", "Fair", "Poor"),
-                valueRange = 1f..5f
-            ) { genHlth = it }
-            ContinuousSlider("Mental Unhealthy Days (last 30)", mentHlth, 0f, 30f, "%.0f") { mentHlth = it }
-            ContinuousSlider("Physical Unhealthy Days (last 30)", physHlth, 0f, 30f, "%.0f") { physHlth = it }
-            BinarySlider("Difficulty Walking / Climbing Stairs", diffWalk) { diffWalk = it }
-
-            SectionHeader("👤 Demographics")
-            BinarySlider("Any Healthcare Coverage", anyHealthcare) { anyHealthcare = it }
-            BinarySlider("Couldn't See Doctor Due to Cost", noDocbcCost) { noDocbcCost = it }
-            BinarySlider("Sex (0 = Female, 1 = Male)", sex) { sex = it }
-            SteppedSlider(
-                label = "Age Group",
-                value = age,
-                steps = listOf("18-24","25-29","30-34","35-39","40-44","45-49",
-                    "50-54","55-59","60-64","65-69","70-74","75-79","80+"),
-                valueRange = 1f..13f
-            ) { age = it }
-            SteppedSlider(
-                label = "Education Level",
-                value = education,
-                steps = listOf("None","Grades 1-8","Grades 9-11","Grade 12","College 1-3 yrs","College 4+ yrs"),
-                valueRange = 1f..6f
-            ) { education = it }
-            SteppedSlider(
-                label = "Income Level",
-                value = income,
-                steps = listOf("<$10K","$10-15K","$15-20K","$20-25K","$25-35K","$35-50K","$50-75K",">$75K"),
-                valueRange = 1f..8f
-            ) { income = it }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    viewModel.predict(
-                        highBP, highChol, cholCheck, bmi,
-                        smoker, stroke, heartDisease, physActivity,
-                        fruits, veggies, hvyAlcohol, anyHealthcare,
-                        noDocbcCost, genHlth, mentHlth, physHlth,
-                        diffWalk, sex, age, education, income
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Predict Diabetes Risk", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            AnimatedVisibility(
-                visible = uiState.result != null,
-                enter = fadeIn() + slideInVertically()
-            ) {
-                uiState.result?.let { result ->
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        ResultCard(result)
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Added the AI Suggestion Button Here
-                        Button(
-                            onClick = {
-                                val conditionLabel = if (result.isDiabetic) "High Risk of Diabetes" else "Low Risk of Diabetes"
-                                onNavigateToAiSuggestion(conditionLabel)
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary
-                            )
-                        ) {
-                            Icon(Icons.Default.Psychology, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Get AI Health Suggestions", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            uiState.error?.let { error ->
-                Text(
-                    text = "Error: $error",
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(8.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-        }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
+// Keeping all your existing helper UI components
 @Composable
 fun SectionHeader(title: String) {
     Text(
@@ -217,7 +376,6 @@ fun SectionHeader(title: String) {
 fun BinarySlider(label: String, value: Float, onValueChange: (Float) -> Unit) {
     val displayValue = if (value >= 0.5f) "Yes" else "No"
     val displayColor = if (value >= 0.5f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -227,25 +385,12 @@ fun BinarySlider(label: String, value: Float, onValueChange: (Float) -> Unit) {
             Text(label, fontSize = 13.sp, modifier = Modifier.weight(1f))
             Text(displayValue, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = displayColor)
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = 0f..1f,
-            steps = 0,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Slider(value = value, onValueChange = onValueChange, valueRange = 0f..1f, steps = 0, modifier = Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-fun ContinuousSlider(
-    label: String,
-    value: Float,
-    min: Float,
-    max: Float,
-    format: String,
-    onValueChange: (Float) -> Unit
-) {
+fun ContinuousSlider(label: String, value: Float, min: Float, max: Float, format: String, onValueChange: (Float) -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -253,34 +398,15 @@ fun ContinuousSlider(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(label, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            Text(
-                String.format(format, value),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Text(String.format(format, value), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = min..max,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Slider(value = value, onValueChange = onValueChange, valueRange = min..max, modifier = Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-fun SteppedSlider(
-    label: String,
-    value: Float,
-    steps: List<String>,
-    valueRange: ClosedFloatingPointRange<Float>,
-    onValueChange: (Float) -> Unit
-) {
-    val index = ((value - valueRange.start) /
-            (valueRange.endInclusive - valueRange.start) * (steps.size - 1))
-        .toInt().coerceIn(0, steps.size - 1)
-
+fun SteppedSlider(label: String, value: Float, steps: List<String>, valueRange: ClosedFloatingPointRange<Float>, onValueChange: (Float) -> Unit) {
+    val index = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start) * (steps.size - 1)).toInt().coerceIn(0, steps.size - 1)
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -288,20 +414,9 @@ fun SteppedSlider(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(label, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            Text(
-                steps[index],
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Text(steps[index], fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
-            steps = steps.size - 2,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Slider(value = value, onValueChange = onValueChange, valueRange = valueRange, steps = steps.size - 2, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -312,9 +427,7 @@ fun ResultCard(result: DiabetesResult) {
     val textColor = if (isDiabetic) MaterialTheme.colorScheme.onErrorContainer else Color(0xFF2E7D32)
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
@@ -323,28 +436,10 @@ fun ResultCard(result: DiabetesResult) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = if (isDiabetic) "⚠️ Diabetic Risk Detected" else "✅ No Diabetes Detected",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = textColor
-            )
-            Text(
-                text = "Confidence: ${"%.1f".format(result.confidence * 100)}%",
-                fontSize = 14.sp,
-                color = textColor
-            )
-            Text(
-                text = "Risk Level: ${result.riskLevel}",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = textColor
-            )
-            Text(
-                text = "⚕️ This is a screening tool only. Consult a doctor for diagnosis.",
-                fontSize = 11.sp,
-                color = textColor.copy(alpha = 0.7f)
-            )
+            Text(text = if (isDiabetic) "⚠️ Diabetic Risk Detected" else "✅ No Diabetes Detected", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
+            Text(text = "Confidence: ${"%.1f".format(result.confidence * 100)}%", fontSize = 14.sp, color = textColor)
+            Text(text = "Risk Level: ${result.riskLevel}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = textColor)
+            Text(text = "⚕️ This is a screening tool only. Consult a doctor for diagnosis.", fontSize = 11.sp, color = textColor.copy(alpha = 0.7f))
         }
     }
 }
