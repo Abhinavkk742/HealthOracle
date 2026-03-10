@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -30,7 +31,8 @@ fun HomeScreen(
     onNavigateToDiabetes: () -> Unit,
     onNavigateToForum: () -> Unit,
     onNavigateToProfile: () -> Unit,
-    onNavigateToHistory: () -> Unit // NEW PARAMETER
+    onNavigateToHistory: () -> Unit,
+    onNavigateToCalendar: () -> Unit
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -106,12 +108,20 @@ fun HomeScreen(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // NEW: History Dashboard Card
             DashboardCard(
                 title = "My History",
                 subtitle = "View saved AI timetables",
                 icon = Icons.Default.History,
                 onClick = onNavigateToHistory
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            DashboardCard(
+                title = "My Calendar",
+                subtitle = "Schedule health appointments",
+                icon = Icons.Default.DateRange,
+                onClick = onNavigateToCalendar
             )
 
             Spacer(modifier = Modifier.height(32.dp))

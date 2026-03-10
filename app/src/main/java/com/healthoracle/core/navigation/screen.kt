@@ -28,4 +28,5 @@ sealed class Screen(val route: String) {
         fun createRoute(conditionName: String, conditionSource: String): String =
             "ai_suggestion/$conditionName/$conditionSource"
     }
+    data object Calendar : Screen("calendar")
 }

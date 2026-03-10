@@ -13,6 +13,7 @@ import androidx.navigation.navArgument
 import com.healthoracle.presentation.aisuggestion.AiSuggestionScreen
 import com.healthoracle.presentation.auth.LoginScreen
 import com.healthoracle.presentation.auth.SignUpScreen
+import com.healthoracle.presentation.calendar.CalendarScreen
 import com.healthoracle.presentation.diabetes.DiabetesScreen
 import com.healthoracle.presentation.forum.ForumScreen
 import com.healthoracle.presentation.home.HomeScreen
@@ -72,14 +73,15 @@ fun HealthOracleNavGraph(
                 onNavigateToDiabetes = { navController.navigate(Screen.Diabetes.route) },
                 onNavigateToForum = { navController.navigate(Screen.Forum.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                onNavigateToHistory = { navController.navigate(Screen.History.route) }
+                onNavigateToHistory = { navController.navigate(Screen.History.route) },
+                onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) }
             )
         }
 
         composable(route = Screen.Profile.route) {
             com.healthoracle.presentation.profile.ProfileScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }, // NEW!
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -88,7 +90,6 @@ fun HealthOracleNavGraph(
             )
         }
 
-        // NEW: Settings Route Integration
         composable(route = Screen.Settings.route) {
             com.healthoracle.presentation.settings.SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
@@ -102,6 +103,12 @@ fun HealthOracleNavGraph(
 
         composable(route = Screen.History.route) {
             com.healthoracle.presentation.history.HistoryScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(route = Screen.Calendar.route) {
+            CalendarScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
