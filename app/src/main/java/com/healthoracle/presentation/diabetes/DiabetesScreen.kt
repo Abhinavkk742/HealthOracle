@@ -8,8 +8,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,7 +25,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -30,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.healthoracle.data.local.DiabetesResult
+import kotlin.math.cos
+import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -454,9 +463,9 @@ fun ResultCard(result: DiabetesResult) {
     val textColor = if (isDiabetic) MaterialTheme.colorScheme.onErrorContainer else Color(0xFF2E7D32)
 
     val riskPercentage = if (isDiabetic) {
-        (result.confidence * 100).toFloat().coerceAtLeast(60f)
+        (result.confidence * 100).toFloat().coerceIn(60f, 100f)
     } else {
-        ((1f - result.confidence) * 100).toFloat().coerceAtMost(40f)
+        ((1f - result.confidence) * 100).toFloat().coerceIn(0f, 40f)
     }
 
     val resultTitle = if (isDiabetic) "High Risk Detected" else "Low Risk Detected"
@@ -492,5 +501,112 @@ fun ResultCard(result: DiabetesResult) {
                 textAlign = TextAlign.Center
             )
         }
+    }
+}
+
+@Composable
+fun SpeedometerGauge(
+    riskPercentage: Float,
+    resultText: String,
+    modifier: Modifier = Modifier
+) {
+    val animatedRisk = animateFloatAsState(
+        targetValue = riskPercentage,
+        animationSpec = tween(durationMillis = 1000),
+        label = "RiskAnimation"
+    )
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier
+                .size(240.dp)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val strokeWidth = 20.dp.toPx()
+                val center = Offset(size.width / 2, size.height / 2)
+                val radius = (size.minDimension - strokeWidth) / 2
+
+                // Background Arc
+                drawArc(
+                    color = Color.LightGray.copy(alpha = 0.3f),
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(center.x - radius, center.y - radius),
+                    size = Size(radius * 2, radius * 2),
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+
+                // Colored Arc
+                val sweepAngle = (animatedRisk.value / 100f) * 180f
+                val color = when {
+                    animatedRisk.value < 40f -> Color(0xFF4CAF50)
+                    animatedRisk.value < 70f -> Color(0xFFFFC107)
+                    else -> Color(0xFFF44336)
+                }
+
+                drawArc(
+                    color = color,
+                    startAngle = 180f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    topLeft = Offset(center.x - radius, center.y - radius),
+                    size = Size(radius * 2, radius * 2),
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+
+                // Needle
+                val needleAngle = 180f + sweepAngle
+                val needleLength = radius - 10.dp.toPx()
+                val needleRad = Math.toRadians(needleAngle.toDouble())
+                val endX = center.x + needleLength * cos(needleRad).toFloat()
+                val endY = center.y + needleLength * sin(needleRad).toFloat()
+
+                drawLine(
+                    color = Color.DarkGray,
+                    start = center,
+                    end = Offset(endX, endY),
+                    strokeWidth = 4.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+
+                drawCircle(
+                    color = Color.DarkGray,
+                    radius = 8.dp.toPx(),
+                    center = center
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.offset(y = 20.dp)
+            ) {
+                Text(
+                    text = "${animatedRisk.value.toInt()}%",
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "RISK",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Text(
+            text = resultText,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
     }
 }
