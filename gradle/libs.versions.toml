@@ -14,8 +14,7 @@ retrofit = "2.11.0"
 okhttp = "4.12.0"
 gson = "2.11.0"
 firebaseBom = "33.7.0"
-tflite = "2.16.1"
-tfliteSupport = "0.4.4"
+litert = "1.0.1" # Replaces tflite
 coil = "2.7.0"
 room = "2.6.1"
 datastore = "1.1.1"
@@ -62,11 +61,10 @@ firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage-ktx" }
 
-# TensorFlow Lite
-tflite = { group = "org.tensorflow", name = "tensorflow-lite", version.ref = "tflite" }
-tflite-support = { group = "org.tensorflow", name = "tensorflow-lite-support", version.ref = "tfliteSupport" }
-tflite-metadata = { group = "org.tensorflow", name = "tensorflow-lite-metadata", version.ref = "tfliteSupport" }
-tflite-select-ops = { group = "org.tensorflow", name = "tensorflow-lite-select-tf-ops", version.ref = "tflite" }
+# TensorFlow Lite (Now LiteRT)
+tflite = { group = "com.google.ai.edge.litert", name = "litert", version.ref = "litert" }
+tflite-support = { group = "com.google.ai.edge.litert", name = "litert-support", version.ref = "litert" }
+tflite-metadata = { group = "com.google.ai.edge.litert", name = "litert-metadata", version.ref = "litert" }
 
 # Coil
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }

@@ -107,11 +107,10 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.storage)
 
-    // TensorFlow Lite
+    // TensorFlow Lite (LiteRT)
     implementation(libs.tflite)
     implementation(libs.tflite.support)
     implementation(libs.tflite.metadata)
-    implementation(libs.tflite.select.ops)
 
     // Coil
     implementation(libs.coil.compose)
