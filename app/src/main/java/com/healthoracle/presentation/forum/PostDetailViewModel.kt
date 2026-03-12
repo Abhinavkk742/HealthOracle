@@ -23,6 +23,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -32,8 +33,7 @@ class PostDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    // IMPORTANT: Paste your Unsigned Upload Preset name here!
-    private val cloudinaryUploadPreset = "krfgajle"
+    private val cloudinaryUploadPreset = "krfgajle" // <-- PASTE YOUR PRESET HERE
 
     private val postId: String = checkNotNull(savedStateHandle["postId"])
 
@@ -104,6 +104,7 @@ class PostDetailViewModel @Inject constructor(
             try {
                 val finalUrls = retainedUrls.toMutableList()
 
+                // Upload any newly selected images to Cloudinary
                 for (uri in newUris) {
                     val downloadUrl = uploadToCloudinary(uri)
                     finalUrls.add(downloadUrl)
@@ -142,6 +143,7 @@ class PostDetailViewModel @Inject constructor(
             .dispatch()
     }
 
+    // FIXED: Correctly pulls the name from the "users" collection now!
     fun addComment(content: String, replyToCommentId: String? = null, replyToAuthorName: String? = null) {
         val currentUser = auth.currentUser ?: return
         val authorId = currentUser.uid
@@ -150,7 +152,7 @@ class PostDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _isCommenting.value = true
             try {
-                // FIX: Look up the absolute latest name from the Firestore 'users' collection
+                // THE FIX: Looking up the fresh profile name from Firestore
                 val userDoc = firestore.collection("users").document(authorId).get().await()
                 val profileName = userDoc.getString("name")
 
@@ -172,7 +174,7 @@ class PostDetailViewModel @Inject constructor(
                     replyToAuthorName = replyToAuthorName
                 )
 
-                firestore.runBatch { batch: com.google.firebase.firestore.WriteBatch ->
+                firestore.runBatch { batch ->
                     val postRef = firestore.collection("forum_posts").document(postId)
                     val commentRef = postRef.collection("comments").document()
                     batch.set(commentRef, newComment)

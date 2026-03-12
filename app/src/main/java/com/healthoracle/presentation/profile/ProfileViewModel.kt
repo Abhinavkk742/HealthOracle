@@ -117,7 +117,9 @@ class ProfileViewModel @Inject constructor(
                         }
                     }.await()
                 }
-            } catch (e: Exception) {
+            }catch (e: Exception) {
+                // Let's make the silent failure incredibly loud!
+                android.util.Log.e("FIREBASE_ERROR", "NAME SYNC FAILED: ${e.message}")
                 e.printStackTrace()
             }
         }
