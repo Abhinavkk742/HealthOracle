@@ -3,6 +3,7 @@ package com.healthoracle.presentation.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.healthoracle.domain.model.UserProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -56,15 +57,26 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    // NEW: Added dob parameter
     fun saveProfile(name: String, dob: String, age: Int, gender: String, height: Float, weight: Float) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, saveSuccess = false, error = null)
-            val userId = auth.currentUser?.uid ?: return@launch
+
+            val currentUser = auth.currentUser
+            val userId = currentUser?.uid ?: return@launch
 
             try {
+                // NEW: Update the core Firebase Auth display name so new posts grab the right name!
+                val profileUpdates = userProfileChangeRequest {
+                    displayName = name
+                }
+                currentUser.updateProfile(profileUpdates).await()
+
+                // Save to Firestore Database
                 val profileToSave = UserProfile(userId, name, dob, age, gender, height, weight)
                 firestore.collection("users").document(userId).set(profileToSave).await()
+
+                // Sweep the forum for old posts
+                syncNewNameToForum(name)
 
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
@@ -73,6 +85,40 @@ class ProfileViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isSaving = false, error = e.localizedMessage)
+            }
+        }
+    }
+
+    private fun syncNewNameToForum(newName: String) {
+        val userId = auth.currentUser?.uid ?: return
+
+        viewModelScope.launch {
+            try {
+                val userPosts = firestore.collection("forum_posts")
+                    .whereEqualTo("authorId", userId)
+                    .get().await()
+
+                if (!userPosts.isEmpty) {
+                    firestore.runBatch { batch ->
+                        userPosts.documents.forEach { doc ->
+                            batch.update(doc.reference, "authorName", "u/$newName")
+                        }
+                    }.await()
+                }
+
+                val userComments = firestore.collectionGroup("comments")
+                    .whereEqualTo("authorId", userId)
+                    .get().await()
+
+                if (!userComments.isEmpty) {
+                    firestore.runBatch { batch ->
+                        userComments.documents.forEach { doc ->
+                            batch.update(doc.reference, "authorName", "u/$newName")
+                        }
+                    }.await()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

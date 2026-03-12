@@ -156,6 +156,7 @@ class PostDetailViewModel @Inject constructor(
 
                 val newComment = Comment(
                     postId = postId,
+                    authorId = currentUser.uid, // NEW: Saves the user's ID
                     authorName = authorName,
                     content = content,
                     timestamp = System.currentTimeMillis(),
