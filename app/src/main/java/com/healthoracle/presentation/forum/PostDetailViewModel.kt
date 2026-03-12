@@ -23,7 +23,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,7 +32,8 @@ class PostDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val cloudinaryUploadPreset = "krfgajle" // <-- PASTE YOUR PRESET HERE
+    // IMPORTANT: Paste your Unsigned Upload Preset name here!
+    private val cloudinaryUploadPreset = "krfgajle"
 
     private val postId: String = checkNotNull(savedStateHandle["postId"])
 
@@ -99,13 +99,11 @@ class PostDetailViewModel @Inject constructor(
         }
     }
 
-    // NEW: Handles merging old Cloudinary URLs with freshly uploaded ones during an edit
     fun editPost(newTitle: String, newContent: String, retainedUrls: List<String>, newUris: List<Uri>, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 val finalUrls = retainedUrls.toMutableList()
 
-                // Upload any newly selected images to Cloudinary
                 for (uri in newUris) {
                     val downloadUrl = uploadToCloudinary(uri)
                     finalUrls.add(downloadUrl)
@@ -144,19 +142,29 @@ class PostDetailViewModel @Inject constructor(
             .dispatch()
     }
 
-    // NEW: Updated to handle replying to specific comments
     fun addComment(content: String, replyToCommentId: String? = null, replyToAuthorName: String? = null) {
         val currentUser = auth.currentUser ?: return
+        val authorId = currentUser.uid
         if (content.isBlank()) return
 
         viewModelScope.launch {
             _isCommenting.value = true
             try {
-                val authorName = if (currentUser.displayName.isNullOrBlank()) "u/Anonymous" else "u/${currentUser.displayName}"
+                // FIX: Look up the absolute latest name from the Firestore 'users' collection
+                val userDoc = firestore.collection("users").document(authorId).get().await()
+                val profileName = userDoc.getString("name")
+
+                val authorName = if (!profileName.isNullOrBlank()) {
+                    "u/$profileName"
+                } else if (!currentUser.displayName.isNullOrBlank()) {
+                    "u/${currentUser.displayName}"
+                } else {
+                    "u/Anonymous"
+                }
 
                 val newComment = Comment(
                     postId = postId,
-                    authorId = currentUser.uid, // NEW: Saves the user's ID
+                    authorId = authorId,
                     authorName = authorName,
                     content = content,
                     timestamp = System.currentTimeMillis(),

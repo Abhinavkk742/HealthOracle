@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await // NEW: Required for the Firestore fetch
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import javax.inject.Inject
@@ -33,7 +34,6 @@ class ForumViewModel @Inject constructor(
     private val _posts = MutableStateFlow<List<ForumPost>>(emptyList())
     val posts: StateFlow<List<ForumPost>> = _posts.asStateFlow()
 
-    // NEW: State for comments on the detail screen
     private val _comments = MutableStateFlow<List<Comment>>(emptyList())
     val comments: StateFlow<List<Comment>> = _comments.asStateFlow()
 
@@ -58,7 +58,6 @@ class ForumViewModel @Inject constructor(
             }
     }
 
-    // NEW: Smart View Counter that only counts a user once
     fun incrementViewCount(postId: String) {
         val userId = Firebase.auth.currentUser?.uid ?: return
 
@@ -77,7 +76,6 @@ class ForumViewModel @Inject constructor(
         }
     }
 
-    // NEW: Smart Upvote Toggle
     fun toggleUpvote(postId: String) {
         val userId = Firebase.auth.currentUser?.uid ?: return
 
@@ -90,11 +88,9 @@ class ForumViewModel @Inject constructor(
                 val currentUpvotes = snapshot.getLong("upvotes") ?: 0L
 
                 if (upvotedBy.contains(userId)) {
-                    // Remove upvote if already voted
                     transaction.update(postRef, "upvotedBy", FieldValue.arrayRemove(userId))
                     transaction.update(postRef, "upvotes", currentUpvotes - 1)
                 } else {
-                    // Add upvote (and remove downvote if it exists)
                     transaction.update(postRef, "upvotedBy", FieldValue.arrayUnion(userId))
                     var voteChange = 1L
                     if (downvotedBy.contains(userId)) {
@@ -107,7 +103,6 @@ class ForumViewModel @Inject constructor(
         }
     }
 
-    // NEW: Smart Downvote Toggle
     fun toggleDownvote(postId: String) {
         val userId = Firebase.auth.currentUser?.uid ?: return
 
@@ -142,11 +137,22 @@ class ForumViewModel @Inject constructor(
             return
         }
 
-        val authorName = if (currentUser.displayName.isNullOrBlank()) "u/Anonymous" else "u/${currentUser.displayName}"
         val authorId = currentUser.uid
 
         viewModelScope.launch {
             try {
+                // FIX: Look up the absolute latest name from the Firestore 'users' collection
+                val userDoc = firestore.collection("users").document(authorId).get().await()
+                val profileName = userDoc.getString("name")
+
+                val authorName = if (!profileName.isNullOrBlank()) {
+                    "u/$profileName"
+                } else if (!currentUser.displayName.isNullOrBlank()) {
+                    "u/${currentUser.displayName}"
+                } else {
+                    "u/Anonymous"
+                }
+
                 val uploadedUrls = mutableListOf<String>()
                 for (uri in imageUris) {
                     val downloadUrl = uploadToCloudinary(uri)
@@ -191,7 +197,7 @@ class ForumViewModel @Inject constructor(
             upvotes = 1,
             commentCount = 0,
             viewCount = 0,
-            upvotedBy = listOf(authorId) // Automatically upvote your own post
+            upvotedBy = listOf(authorId)
         )
 
         docRef.set(newPost)
@@ -199,7 +205,6 @@ class ForumViewModel @Inject constructor(
             .addOnFailureListener { e -> onComplete(false, "Failed to create post: ${e.message}") }
     }
 
-    // NEW: Fetch comments for a specific post
     fun fetchCommentsForPost(postId: String) {
         firestore.collection("forum_posts").document(postId).collection("comments")
             .orderBy("timestamp", Query.Direction.ASCENDING)
@@ -214,27 +219,44 @@ class ForumViewModel @Inject constructor(
             }
     }
 
-    // NEW: Add a comment and increment the post's commentCount
     fun addComment(postId: String, content: String, onComplete: () -> Unit) {
         val currentUser = Firebase.auth.currentUser ?: return
-        val authorName = if (currentUser.displayName.isNullOrBlank()) "u/Anonymous" else "u/${currentUser.displayName}"
+        val authorId = currentUser.uid
 
-        val postRef = firestore.collection("forum_posts").document(postId)
-        val commentRef = postRef.collection("comments").document()
+        viewModelScope.launch {
+            try {
+                // FIX: Always get the latest name for comments too
+                val userDoc = firestore.collection("users").document(authorId).get().await()
+                val profileName = userDoc.getString("name")
 
-        val comment = Comment(
-            id = commentRef.id,
-            postId = postId,
-            authorName = authorName,
-            content = content,
-            timestamp = System.currentTimeMillis()
-        )
+                val authorName = if (!profileName.isNullOrBlank()) {
+                    "u/$profileName"
+                } else if (!currentUser.displayName.isNullOrBlank()) {
+                    "u/${currentUser.displayName}"
+                } else {
+                    "u/Anonymous"
+                }
 
-        firestore.runBatch { batch ->
-            batch.set(commentRef, comment)
-            batch.update(postRef, "commentCount", FieldValue.increment(1))
-        }.addOnSuccessListener {
-            onComplete()
+                val postRef = firestore.collection("forum_posts").document(postId)
+                val commentRef = postRef.collection("comments").document()
+
+                val comment = Comment(
+                    id = commentRef.id,
+                    postId = postId,
+                    authorName = authorName,
+                    content = content,
+                    timestamp = System.currentTimeMillis()
+                )
+
+                firestore.runBatch { batch ->
+                    batch.set(commentRef, comment)
+                    batch.update(postRef, "commentCount", FieldValue.increment(1))
+                }.addOnSuccessListener {
+                    onComplete()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }
