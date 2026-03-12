@@ -82,6 +82,9 @@ dependencies {
     implementation(libs.compose.material.icons)
     debugImplementation(libs.compose.ui.tooling)
 
+    //Cloudinary photo for posts
+    implementation("com.cloudinary:cloudinary-android:2.5.0")
+
     // Navigation
     implementation(libs.navigation.compose)
 

@@ -9,9 +9,9 @@ data class ForumPost(
     val timeAgo: String = "Just now",
     val title: String = "",
     val content: String = "",
-    val imageUrl: String? = null, // NEW: Optional image URL
+    val imageUrls: List<String> = emptyList(), // NEW: Stores multiple image links
     val upvotes: Int = 0,
     val commentCount: Int = 0,
-    val viewCount: Int = 0,       // NEW: Tracks how many people saw the post
+    val viewCount: Int = 0,
     val userVote: Int = 0
 )

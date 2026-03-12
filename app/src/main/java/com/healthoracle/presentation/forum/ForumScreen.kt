@@ -2,9 +2,11 @@ package com.healthoracle.presentation.forum
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -118,7 +120,6 @@ fun ForumScreen(
                     RedditPostCard(
                         post = post,
                         onClick = {
-                            // Registers a view in the cloud when tapped
                             viewModel.incrementViewCount(post.id)
                             onNavigateToPostDetail(post.id)
                         },
@@ -222,19 +223,28 @@ fun RedditPostCard(
                 lineHeight = 20.sp
             )
 
-            // NEW: Render the image if the post contains one
-            if (!post.imageUrl.isNullOrEmpty()) {
+            // Multiple image horizontal carousel
+            if (post.imageUrls.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                AsyncImage(
-                    model = post.imageUrl,
-                    contentDescription = "Post Image",
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                    contentScale = ContentScale.Crop
-                )
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    post.imageUrls.forEach { url ->
+                        AsyncImage(
+                            model = url,
+                            contentDescription = "Post Image",
+                            modifier = Modifier
+                                .fillMaxWidth(if (post.imageUrls.size > 1) 0.85f else 1f) // Show edge of next image if > 1
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -309,7 +319,6 @@ fun RedditPostCard(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // NEW: View Count Pill
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier

@@ -5,9 +5,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape // NEW: Added missing import
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,16 +37,18 @@ fun CreatePostScreen(
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
 
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    // NEW: List of URIs to support multiple images
+    var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isUploading by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    // Upgraded to PickMultipleVisualMedia
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri: Uri? ->
-            imageUri = uri
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4),
+        onResult = { uris: List<Uri> ->
+            imageUris = uris
         }
     )
 
@@ -64,7 +67,7 @@ fun CreatePostScreen(
                         onClick = {
                             if (title.isNotBlank() && content.isNotBlank()) {
                                 isUploading = true
-                                viewModel.createPost(title, content, imageUri) { success, message ->
+                                viewModel.createPost(title, content, imageUris) { success, message ->
                                     isUploading = false
                                     if (success) {
                                         onNavigateBack()
@@ -103,7 +106,6 @@ fun CreatePostScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Title Input
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
@@ -120,7 +122,6 @@ fun CreatePostScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-            // Content Input
             OutlinedTextField(
                 value = content,
                 onValueChange = { content = it },
@@ -138,54 +139,59 @@ fun CreatePostScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Image Preview Area
-            if (imageUri != null) {
-                Box(
+            // Renders the selected images in a scrolling row
+            if (imageUris.isNotEmpty()) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    AsyncImage(
-                        model = imageUri,
-                        contentDescription = "Selected Image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp)
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
-                    )
+                    imageUris.forEach { uri ->
+                        Box(modifier = Modifier.width(200.dp)) {
+                            AsyncImage(
+                                model = uri,
+                                contentDescription = "Selected Image",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.Crop
+                            )
 
-                    // Remove Image Button
-                    IconButton(
-                        onClick = { imageUri = null },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.6f))
-                            .size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Remove Image",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
+                            IconButton(
+                                onClick = { imageUris = imageUris - uri },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.6f))
+                                    .size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Remove Image",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 }
-            } else {
-                // Add Image Button
-                OutlinedButton(
-                    onClick = {
-                        photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Image, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Attach an Image")
-                }
+            }
+
+            // Add/Change Images Button
+            OutlinedButton(
+                onClick = {
+                    photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Image, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (imageUris.isEmpty()) "Attach Images" else "Replace Images")
             }
         }
     }

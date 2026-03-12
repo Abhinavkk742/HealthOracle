@@ -3,24 +3,31 @@ package com.healthoracle.presentation.forum
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
 import com.healthoracle.data.model.ForumPost
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.UUID
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import javax.inject.Inject
 
 @HiltViewModel
 class ForumViewModel @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : ViewModel() {
+
+    // IMPORTANT: Paste your Unsigned Upload Preset name here!
+    private val cloudinaryUploadPreset = "krfgajle"
 
     private val _posts = MutableStateFlow<List<ForumPost>>(emptyList())
     val posts: StateFlow<List<ForumPost>> = _posts.asStateFlow()
@@ -70,37 +77,57 @@ class ForumViewModel @Inject constructor(
             .update("upvotes", currentUpvotes - 1)
     }
 
-    // NEW: Function to handle image uploads and creating the actual post
-    fun createPost(title: String, content: String, imageUri: Uri?, onComplete: (Boolean, String) -> Unit) {
+    fun createPost(title: String, content: String, imageUris: List<Uri>, onComplete: (Boolean, String) -> Unit) {
         val currentUser = Firebase.auth.currentUser
         if (currentUser == null) {
             onComplete(false, "You must be logged in to post.")
             return
         }
 
-        // Match the Reddit naming convention
         val authorName = if (currentUser.displayName.isNullOrBlank()) "u/Anonymous" else "u/${currentUser.displayName}"
 
-        if (imageUri != null) {
-            // 1. Upload the image to Firebase Storage first
-            val storageRef = Firebase.storage.reference.child("forum_images/${UUID.randomUUID()}.jpg")
-            storageRef.putFile(imageUri)
-                .addOnSuccessListener {
-                    storageRef.downloadUrl.addOnSuccessListener { downloadUrl ->
-                        // 2. Save the post with the generated Image URL
-                        savePostToFirestore(title, content, authorName, downloadUrl.toString(), onComplete)
-                    }
+        viewModelScope.launch {
+            try {
+                val uploadedUrls = mutableListOf<String>()
+
+                // Upload each image to Cloudinary and wait for the secure URL
+                for (uri in imageUris) {
+                    val downloadUrl = uploadToCloudinary(uri)
+                    uploadedUrls.add(downloadUrl)
                 }
-                .addOnFailureListener { e ->
-                    onComplete(false, "Image upload failed: ${e.message}")
-                }
-        } else {
-            // Save post without an image
-            savePostToFirestore(title, content, authorName, null, onComplete)
+
+                // Save the text and the Cloudinary links to your Firestore database
+                savePostToFirestore(title, content, authorName, uploadedUrls, onComplete)
+            } catch (e: Exception) {
+                onComplete(false, "Cloudinary upload failed: ${e.message}")
+            }
         }
     }
 
-    private fun savePostToFirestore(title: String, content: String, authorName: String, imageUrl: String?, onComplete: (Boolean, String) -> Unit) {
+    // Helper function to turn Cloudinary's callback into a modern Kotlin Coroutine
+    private suspend fun uploadToCloudinary(uri: Uri): String = suspendCancellableCoroutine { continuation ->
+        MediaManager.get().upload(uri)
+            .unsigned(cloudinaryUploadPreset)
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String?) {}
+
+                override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
+
+                override fun onSuccess(requestId: String?, resultData: MutableMap<Any?, Any?>?) {
+                    val url = resultData?.get("secure_url") as? String ?: ""
+                    continuation.resume(url)
+                }
+
+                override fun onError(requestId: String?, error: ErrorInfo?) {
+                    continuation.resumeWithException(Exception(error?.description ?: "Unknown error"))
+                }
+
+                override fun onReschedule(requestId: String?, error: ErrorInfo?) {}
+            })
+            .dispatch()
+    }
+
+    private fun savePostToFirestore(title: String, content: String, authorName: String, imageUrls: List<String>, onComplete: (Boolean, String) -> Unit) {
         val docRef = firestore.collection("forum_posts").document()
 
         val newPost = ForumPost(
@@ -110,8 +137,8 @@ class ForumViewModel @Inject constructor(
             timeAgo = "Just now",
             title = title,
             content = content,
-            imageUrl = imageUrl,
-            upvotes = 1, // Start with 1 default upvote from the creator
+            imageUrls = imageUrls,
+            upvotes = 1,
             commentCount = 0,
             viewCount = 0,
             userVote = 1
@@ -119,6 +146,6 @@ class ForumViewModel @Inject constructor(
 
         docRef.set(newPost)
             .addOnSuccessListener { onComplete(true, "Post created successfully!") }
-            .addOnFailureListener { e -> onComplete(false, "Failed to create post: ${e.message}") }
+            .addOnFailureListener { e -> onComplete(false, "Failed to save post data: ${e.message}") }
     }
 }
