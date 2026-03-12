@@ -28,10 +28,10 @@ class CalendarViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
-    fun addAppointment(title: String, time: String, date: LocalDate, onSaved: (Int) -> Unit) {
+    fun addAppointment(title: String, time: String, date: LocalDate, category: String, description: String, onSaved: (Int) -> Unit) {
         viewModelScope.launch {
             appointmentDao.insertAppointment(
-                AppointmentEntity(title = title, time = time, date = date.toString())
+                AppointmentEntity(title = title, time = time, date = date.toString(), category = category, description = description)
             )
             val alarmId = (title + time + date.toString()).hashCode()
             onSaved(alarmId)
@@ -40,10 +40,8 @@ class CalendarViewModel @Inject constructor(
 
     fun deleteAppointment(appointment: AppointmentEntity, onDeleted: (Int) -> Unit) {
         viewModelScope.launch {
-            // 1. Delete locally from Room
             appointmentDao.deleteAppointment(appointment)
 
-            // 2. Proactively delete from Firebase if logged in
             val userId = Firebase.auth.currentUser?.uid
             if (userId != null) {
                 firestore.collection("users").document(userId)
@@ -51,13 +49,11 @@ class CalendarViewModel @Inject constructor(
                     .delete()
             }
 
-            // 3. Cancel the local alarm notification
             val alarmId = (appointment.title + appointment.time + appointment.date).hashCode()
             onDeleted(alarmId)
         }
     }
 
-    // Upgraded true-mirror cloud sync
     fun syncToCloud(onComplete: (Boolean, String) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid
         if (userId == null) {
@@ -70,21 +66,18 @@ class CalendarViewModel @Inject constructor(
                 val localAppointments = appointmentDao.getAppointmentsList()
                 val localIds = localAppointments.map { it.id.toString() }
 
-                // Fetch the current cloud state first
                 firestore.collection("users").document(userId)
                     .collection("appointments")
                     .get()
                     .addOnSuccessListener { snapshot ->
                         val batch = firestore.batch()
 
-                        // Step 1: Delete appointments from the cloud that no longer exist locally
                         for (doc in snapshot.documents) {
                             if (!localIds.contains(doc.id)) {
                                 batch.delete(doc.reference)
                             }
                         }
 
-                        // Step 2: Upload or update all current local appointments
                         localAppointments.forEach { appt ->
                             val docRef = firestore.collection("users").document(userId)
                                 .collection("appointments").document(appt.id.toString())
@@ -92,12 +85,13 @@ class CalendarViewModel @Inject constructor(
                             val data = mapOf(
                                 "title" to appt.title,
                                 "time" to appt.time,
-                                "date" to appt.date
+                                "date" to appt.date,
+                                "category" to appt.category,
+                                "description" to appt.description
                             )
                             batch.set(docRef, data)
                         }
 
-                        // Execute the batch (deletes and sets together)
                         batch.commit()
                             .addOnSuccessListener {
                                 onComplete(true, "Successfully synced to Firebase!")
@@ -137,11 +131,13 @@ class CalendarViewModel @Inject constructor(
                             val title = document.getString("title") ?: continue
                             val time = document.getString("time") ?: continue
                             val date = document.getString("date") ?: continue
+                            val category = document.getString("category") ?: "Checkup"
+                            val description = document.getString("description") ?: ""
 
                             val id = document.id.toIntOrNull() ?: 0
 
                             appointmentDao.insertAppointment(
-                                AppointmentEntity(id = id, title = title, time = time, date = date)
+                                AppointmentEntity(id = id, title = title, time = time, date = date, category = category, description = description)
                             )
                         }
                         onComplete(true, "Successfully restored appointments from Firebase!")

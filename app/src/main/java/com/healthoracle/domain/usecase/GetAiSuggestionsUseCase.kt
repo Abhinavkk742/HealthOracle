@@ -9,7 +9,6 @@ import javax.inject.Inject
 class GetAiSuggestionsUseCase @Inject constructor() {
     operator fun invoke(conditionName: String, conditionSource: String): Flow<Result<String>> = flow {
         try {
-            // Highly structured prompt to prevent messy markdown and enforce a beautiful layout
             val prompt = """
                 You are an empathetic and professional medical AI assistant.
                 The user has received the following health indication: $conditionName (Source: $conditionSource). 
@@ -19,8 +18,10 @@ class GetAiSuggestionsUseCase @Inject constructor() {
                 CRITICAL FORMATTING RULES:
                 1. DO NOT use markdown characters like ** or *. 
                 2. Use ALL CAPS for section headers.
-                3. Use appropriate emojis for headers and bullet points.
-                4. Use standard dashes (-) for list items.
+                3. Use appropriate emojis for headers only.
+                4. For EVERY SINGLE ITEM in the MORNING, AFTERNOON, and EVENING routines, you MUST start the line with a standard dash, followed exactly by the time in HH:MM AM/PM format, then a colon, then the task. 
+                   Example: - 07:00 AM: Go for a 30-minute run.
+                   Example: - 08:30 AM: Eat a healthy breakfast (Oatmeal).
                 5. Add a blank line between every single section for readability.
                 
                 Please structure your response exactly with these sections:

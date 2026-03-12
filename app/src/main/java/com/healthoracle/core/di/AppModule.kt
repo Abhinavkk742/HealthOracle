@@ -29,7 +29,6 @@ object AppModule {
         @ApplicationContext context: Context
     ): DiabetesClassifier = DiabetesClassifier(context)
 
-    // Room Database Provider
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -37,10 +36,11 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "healthoracle_db"
-        ).build()
+        )
+            .fallbackToDestructiveMigration() // Safely handles the schema update
+            .build()
     }
 
-    // Room DAO Provider
     @Provides
     @Singleton
     fun provideAppointmentDao(db: AppDatabase): AppointmentDao {

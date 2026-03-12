@@ -8,5 +8,7 @@ data class AppointmentEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val title: String,
     val time: String,
-    val date: String // We will store the date as a String (e.g., "2026-03-10")
+    val date: String,
+    val category: String = "Checkup",
+    val description: String = "" // NEW: Stores the specific AI advice or user notes
 )
