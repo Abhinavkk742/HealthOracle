@@ -7,5 +7,8 @@ data class Comment(
     val postId: String = "",
     val authorName: String = "",
     val content: String = "",
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    // NEW: Fields to handle threaded replies
+    val replyToCommentId: String? = null,
+    val replyToAuthorName: String? = null
 )
