@@ -15,6 +15,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.*
@@ -29,10 +31,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.healthoracle.data.local.entity.AppointmentEntity
+import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.launch
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +66,13 @@ fun CalendarScreen(
 
     var showAddDialog by remember { mutableStateOf(false) }
     var newAppointmentTitle by remember { mutableStateOf("") }
-    var newAppointmentTime by remember { mutableStateOf("") }
+
+    val currentTime = remember { LocalTime.now() }
+    val timePickerState = rememberTimePickerState(
+        initialHour = currentTime.hour,
+        initialMinute = currentTime.minute,
+        is24Hour = false
+    )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -75,7 +85,31 @@ fun CalendarScreen(
                     }
                 },
                 actions = {
-                    // NEW: Test Button in the top right corner
+                    // NEW: Download from Cloud Button
+                    IconButton(
+                        onClick = {
+                            viewModel.downloadFromCloud { success, message ->
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(message)
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(imageVector = Icons.Default.CloudDownload, contentDescription = "Download from Cloud")
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.syncToCloud { success, message ->
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(message)
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(imageVector = Icons.Default.CloudUpload, contentDescription = "Sync to Cloud")
+                    }
+
                     IconButton(
                         onClick = {
                             scheduler.scheduleTestNotification()
@@ -142,7 +176,10 @@ fun CalendarScreen(
                 onDismissRequest = { showAddDialog = false },
                 title = { Text("Add Appointment") },
                 text = {
-                    Column {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         OutlinedTextField(
                             value = newAppointmentTitle,
                             onValueChange = { newAppointmentTitle = it },
@@ -150,34 +187,41 @@ fun CalendarScreen(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = newAppointmentTime,
-                            onValueChange = { newAppointmentTime = it },
-                            label = { Text("Time (e.g., 10:00 AM)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Text(
+                            text = "Select Time",
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.align(Alignment.Start)
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TimeInput(state = timePickerState)
                     }
                 },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (newAppointmentTitle.isNotBlank() && newAppointmentTime.isNotBlank()) {
+                            if (newAppointmentTitle.isNotBlank()) {
+                                val hour = timePickerState.hour
+                                val minute = timePickerState.minute
+                                val isPm = hour >= 12
+                                val displayHour = if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
+                                val amPm = if (isPm) "PM" else "AM"
+                                val formattedTime = String.format(Locale.getDefault(), "%d:%02d %s", displayHour, minute, amPm)
+
                                 viewModel.addAppointment(
                                     title = newAppointmentTitle,
-                                    time = newAppointmentTime,
+                                    time = formattedTime,
                                     date = selectedDate
                                 ) { alarmId ->
                                     scheduler.schedule(
                                         appointmentId = alarmId,
                                         title = newAppointmentTitle,
-                                        timeStr = newAppointmentTime,
+                                        timeStr = formattedTime,
                                         date = selectedDate
                                     )
                                 }
                                 newAppointmentTitle = ""
-                                newAppointmentTime = ""
                                 showAddDialog = false
                             }
                         }
@@ -189,7 +233,6 @@ fun CalendarScreen(
                     TextButton(
                         onClick = {
                             newAppointmentTitle = ""
-                            newAppointmentTime = ""
                             showAddDialog = false
                         }
                     ) {

@@ -7,5 +7,6 @@ import com.healthoracle.data.local.entity.AppointmentEntity
 
 @Database(entities = [AppointmentEntity::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
-    abstract val appointmentDao: AppointmentDao
+    // Changed from 'abstract val' to 'abstract fun'
+    abstract fun appointmentDao(): AppointmentDao
 }

@@ -13,6 +13,10 @@ interface AppointmentDao {
     @Query("SELECT * FROM appointments")
     fun getAllAppointments(): Flow<List<AppointmentEntity>>
 
+    // NEW: Fetch a one-time list of appointments specifically for cloud syncing
+    @Query("SELECT * FROM appointments")
+    suspend fun getAppointmentsList(): List<AppointmentEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAppointment(appointment: AppointmentEntity)
 

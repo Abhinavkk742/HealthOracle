@@ -2,9 +2,6 @@ package com.healthoracle.core.di
 
 import android.content.Context
 import androidx.room.Room
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 import com.healthoracle.data.local.AppDatabase
 import com.healthoracle.data.local.DiabetesClassifier
 import com.healthoracle.data.local.SkinDiseaseClassifier
@@ -32,11 +29,7 @@ object AppModule {
         @ApplicationContext context: Context
     ): DiabetesClassifier = DiabetesClassifier(context)
 
-    @Provides
-    @Singleton
-    fun provideFirestore(): FirebaseFirestore = Firebase.firestore
-
-    // NEW: Room Database Providers
+    // Room Database Provider
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -47,9 +40,10 @@ object AppModule {
         ).build()
     }
 
+    // Room DAO Provider
     @Provides
     @Singleton
     fun provideAppointmentDao(db: AppDatabase): AppointmentDao {
-        return db.appointmentDao
+        return db.appointmentDao()
     }
 }
