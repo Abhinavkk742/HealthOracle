@@ -16,7 +16,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Flag // NEW
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.MoreVert // NEW
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbUp
@@ -162,7 +164,6 @@ fun RedditPostCard(
     onUpvote: () -> Unit,
     onDownvote: () -> Unit
 ) {
-    // FIX: Instead of checking a 'userVote' variable, we check the ID lists
     val currentUserId = Firebase.auth.currentUser?.uid ?: ""
     val hasUpvoted = post.upvotedBy.contains(currentUserId)
     val hasDownvoted = post.downvotedBy.contains(currentUserId)
@@ -174,6 +175,24 @@ fun RedditPostCard(
         hasUpvoted -> Color(0xFFFF4500)
         hasDownvoted -> Color(0xFF7193FF)
         else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    // NEW: States for the Report Menu and Dialog
+    var showCardMenu by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+
+    if (showReportDialog) {
+        AlertDialog(
+            onDismissRequest = { showReportDialog = false },
+            title = { Text("Report Post") },
+            text = { Text("Are you sure you want to report this post to the moderators?") },
+            confirmButton = {
+                TextButton(onClick = { showReportDialog = false }) { Text("Report", color = Color.Red) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReportDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 
     Card(
@@ -210,6 +229,25 @@ fun RedditPostCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Spacer(modifier = Modifier.weight(1f)) // Pushes the menu to the far right edge
+
+                // NEW: 3-Dot Options Menu
+                Box {
+                    IconButton(onClick = { showCardMenu = true }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    DropdownMenu(expanded = showCardMenu, onDismissRequest = { showCardMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Report Post") },
+                            onClick = {
+                                showCardMenu = false
+                                showReportDialog = true
+                            },
+                            leadingIcon = { Icon(Icons.Default.Flag, null) }
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

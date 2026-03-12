@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Article // NEW
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Logout
@@ -32,7 +33,8 @@ import java.util.Locale
 fun ProfileScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    onNavigateToSettings: () -> Unit, // NEW PARAMETER
+    onNavigateToSettings: () -> Unit,
+    onNavigateToMyPosts: () -> Unit, // NEW: Navigation trigger for My Posts
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -91,7 +93,6 @@ fun ProfileScreen(
                     IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
                 },
                 actions = {
-                    // NEW: Settings Button
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -229,6 +230,19 @@ fun ProfileScreen(
                     } else {
                         Text("Save Profile", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // NEW: View My Posts Button
+                OutlinedButton(
+                    onClick = onNavigateToMyPosts,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Article, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("View My Posts", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))

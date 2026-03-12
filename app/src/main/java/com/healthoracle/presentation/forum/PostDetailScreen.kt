@@ -7,7 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll // NEW: Added missing import
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,10 +50,28 @@ fun PostDetailScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
 
+    // NEW: Report state
+    var showReportDialog by remember { mutableStateOf(false) }
+
     // Tracks who the user is replying to
     var replyingTo by remember { mutableStateOf<Comment?>(null) }
 
     val currentUserId = Firebase.auth.currentUser?.uid ?: ""
+
+    // Report Dialog
+    if (showReportDialog) {
+        AlertDialog(
+            onDismissRequest = { showReportDialog = false },
+            title = { Text("Report Post") },
+            text = { Text("Are you sure you want to report this post for inappropriate content? Our moderation team will review it.") },
+            confirmButton = {
+                TextButton(onClick = { showReportDialog = false }) { Text("Report", color = Color.Red) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReportDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -63,9 +81,10 @@ fun PostDetailScreen(
                     IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, "Back") }
                 },
                 actions = {
-                    if (post?.authorId == currentUserId) {
-                        IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, "Options") }
-                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    // FIX: Always show the menu icon, but change what's inside it based on ownership!
+                    IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, "Options") }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        if (post?.authorId == currentUserId) {
                             DropdownMenuItem(
                                 text = { Text("Edit Post") },
                                 onClick = { showMenu = false; showEditDialog = true },
@@ -78,6 +97,16 @@ fun PostDetailScreen(
                                     viewModel.deletePost { success -> if (success) onNavigateBack() }
                                 },
                                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) }
+                            )
+                        } else {
+                            // If they are NOT the author, let them report it
+                            DropdownMenuItem(
+                                text = { Text("Report Post", color = Color.Red) },
+                                onClick = {
+                                    showMenu = false
+                                    showReportDialog = true
+                                },
+                                leadingIcon = { Icon(Icons.Default.Flag, null, tint = Color.Red) }
                             )
                         }
                     }
@@ -221,7 +250,7 @@ fun CommentThreadItem(comment: Comment, isReply: Boolean, onReplyClick: () -> Un
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                start = if (isReply) 48.dp else 16.dp, // Indents replies!
+                start = if (isReply) 48.dp else 16.dp,
                 end = 16.dp,
                 top = 12.dp,
                 bottom = 12.dp
@@ -303,7 +332,6 @@ fun EditPostDialog(
                 Text("Images", fontWeight = FontWeight.Bold)
 
                 Row(modifier = Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Show old images (can be deleted)
                     retainedUrls.forEach { url ->
                         Box {
                             AsyncImage(model = url, contentDescription = null, modifier = Modifier.size(100.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
@@ -313,7 +341,6 @@ fun EditPostDialog(
                             ) { Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp)) }
                         }
                     }
-                    // Show new URIs (can be deleted)
                     newUris.forEach { uri ->
                         Box {
                             AsyncImage(model = uri, contentDescription = null, modifier = Modifier.size(100.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)

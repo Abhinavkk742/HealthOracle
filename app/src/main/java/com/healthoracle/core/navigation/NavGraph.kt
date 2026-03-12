@@ -82,6 +82,7 @@ fun HealthOracleNavGraph(
             com.healthoracle.presentation.profile.ProfileScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                onNavigateToMyPosts = { navController.navigate("my_posts") }, // <--- TRIGGER
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -173,12 +174,21 @@ fun HealthOracleNavGraph(
                 navArgument("postId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            // NEW: Extracted the postId and passed it down to the screen
             val postId = backStackEntry.arguments?.getString("postId") ?: return@composable
 
             com.healthoracle.presentation.forum.PostDetailScreen(
                 postId = postId,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // NEW: My Posts Screen Destination
+        composable(route = "my_posts") {
+            com.healthoracle.presentation.profile.MyPostsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToPostDetail = { postId ->
+                    navController.navigate(Screen.PostDetail.createRoute(postId))
+                }
             )
         }
     }
