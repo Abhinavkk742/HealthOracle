@@ -10,19 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.NewReleases
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.ThumbUp
-import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,9 +37,8 @@ fun ForumScreen(
     viewModel: ForumViewModel = hiltViewModel()
 ) {
     val posts by viewModel.posts.collectAsState()
-
-    // FIX: We now listen to the ViewModel's actual sort state instead of a local fake one!
     val selectedSort by viewModel.sortBy.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     Scaffold(
         topBar = {
@@ -84,20 +71,51 @@ fun ForumScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    ) { paddingValues ->
+    ) { paddingValues: PaddingValues -> // FIX: Explicitly typed to stop the compiler bug
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                // FIX: Deconstructed the padding to completely bypass the Kotlin type mismatch error
+                .padding(
+                    top = paddingValues.calculateTopPadding(),
+                    bottom = paddingValues.calculateBottomPadding()
+                )
         ) {
-            Row(
+            // NEW: Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text("Search discussions...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear")
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(24.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.Transparent
+                )
+            )
+
+            // Sort Chips (Now dynamically hooked up!)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // FIX: Clicking these actually re-sorts the feed!
                 SortChip(
                     label = "Hot",
                     icon = Icons.Default.LocalFireDepartment,
@@ -118,21 +136,30 @@ fun ForumScreen(
                 )
             }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(posts, key = { it.id }) { post -> // Added a key for smoother scrolling animations
-                    RedditPostCard(
-                        post = post,
-                        onClick = {
-                            viewModel.incrementViewCount(post.id)
-                            onNavigateToPostDetail(post.id)
-                        },
-                        onUpvote = { viewModel.toggleUpvote(post.id) },
-                        onDownvote = { viewModel.toggleDownvote(post.id) }
+            if (posts.isEmpty() && searchQuery.isNotEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "No posts found.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(posts, key = { it.id }) { post ->
+                        RedditPostCard(
+                            post = post,
+                            onClick = {
+                                viewModel.incrementViewCount(post.id)
+                                onNavigateToPostDetail(post.id)
+                            },
+                            onUpvote = { viewModel.toggleUpvote(post.id) },
+                            onDownvote = { viewModel.toggleDownvote(post.id) }
+                        )
+                    }
                 }
             }
         }
@@ -174,11 +201,7 @@ fun RedditPostCard(
     val upvoteColor = if (hasUpvoted) Color(0xFFFF4500) else MaterialTheme.colorScheme.onSurfaceVariant
     val downvoteColor = if (hasDownvoted) Color(0xFF7193FF) else MaterialTheme.colorScheme.onSurfaceVariant
 
-    val scoreColor = when {
-        hasUpvoted -> Color(0xFFFF4500)
-        hasDownvoted -> Color(0xFF7193FF)
-        else -> MaterialTheme.colorScheme.onSurface
-    }
+    val scoreColor = thermonuclear_scoreColor(hasUpvoted, hasDownvoted)
 
     var showCardMenu by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
@@ -188,12 +211,8 @@ fun RedditPostCard(
             onDismissRequest = { showReportDialog = false },
             title = { Text("Report Post") },
             text = { Text("Are you sure you want to report this post to the moderators?") },
-            confirmButton = {
-                TextButton(onClick = { showReportDialog = false }) { Text("Report", color = Color.Red) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showReportDialog = false }) { Text("Cancel") }
-            }
+            confirmButton = { TextButton(onClick = { showReportDialog = false }) { Text("Report", color = Color.Red) } },
+            dismissButton = { TextButton(onClick = { showReportDialog = false }) { Text("Cancel") } }
         )
     }
 
@@ -405,5 +424,14 @@ fun RedditPostCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun thermonuclear_scoreColor(hasUpvoted: Boolean, hasDownvoted: Boolean): Color {
+    return when {
+        hasUpvoted -> Color(0xFFFF4500)
+        hasDownvoted -> Color(0xFF7193FF)
+        else -> MaterialTheme.colorScheme.onSurface
     }
 }

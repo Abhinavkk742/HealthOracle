@@ -14,6 +14,7 @@ import com.google.firebase.ktx.Firebase
 import com.healthoracle.data.model.Comment
 import com.healthoracle.data.model.ForumPost
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,25 +33,43 @@ class ForumViewModel @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
-    private val cloudinaryUploadPreset = "krfgajle" // Keep your preset here!
+    private val cloudinaryUploadPreset = "krfgajle"
 
-    // NEW: Manage sorting state
     private val _sortBy = MutableStateFlow("New")
     val sortBy: StateFlow<String> = _sortBy.asStateFlow()
 
-    // Store the raw list from Firebase
+    // NEW: Search query state
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    // NEW: Pull to refresh state
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     private val _rawPosts = MutableStateFlow<List<ForumPost>>(emptyList())
 
-    // Combine the raw posts with the sort method to instantly arrange the feed
-    val posts: StateFlow<List<ForumPost>> = combine(_rawPosts, _sortBy) { postList, sortMethod ->
+    // UPDATED: Now combines Raw Posts + Sorting + Searching!
+    val posts: StateFlow<List<ForumPost>> = combine(_rawPosts, _sortBy, _searchQuery) { postList, sortMethod, query ->
+
+        // 1. Filter by Search Query
+        val filteredList = if (query.isBlank()) {
+            postList
+        } else {
+            postList.filter {
+                it.title.contains(query, ignoreCase = true) ||
+                        it.content.contains(query, ignoreCase = true) ||
+                        it.authorName.contains(query, ignoreCase = true)
+            }
+        }
+
+        // 2. Apply Sorting
         when (sortMethod) {
-            "New" -> postList.sortedByDescending { it.timestamp }
-            "Top" -> postList.sortedByDescending { it.upvotes }
-            "Hot" -> postList.sortedByDescending {
-                // A simple Reddit-style hotness formula: prioritizes engagement!
+            "New" -> filteredList.sortedByDescending { it.timestamp }
+            "Top" -> filteredList.sortedByDescending { it.upvotes }
+            "Hot" -> filteredList.sortedByDescending {
                 (it.upvotes * 2) + (it.commentCount * 3) + it.viewCount
             }
-            else -> postList
+            else -> filteredList
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -61,9 +80,24 @@ class ForumViewModel @Inject constructor(
         fetchRealtimePosts()
     }
 
-    // Update the sort method
     fun setSortMethod(method: String) {
         _sortBy.value = method
+    }
+
+    // NEW: Function to update search query
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    // NEW: Pull to refresh logic
+    fun refreshPosts() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            // Since our SnapshotListener is real-time, the data is already fresh!
+            // We just give the user a satisfying 1-second visual delay.
+            delay(1000)
+            _isRefreshing.value = false
+        }
     }
 
     private fun fetchRealtimePosts() {
@@ -78,7 +112,7 @@ class ForumViewModel @Inject constructor(
                     val postList = snapshot.documents.mapNotNull { doc ->
                         doc.toObject(ForumPost::class.java)
                     }
-                    _rawPosts.value = postList // Feed the raw posts
+                    _rawPosts.value = postList
                 }
             }
     }
@@ -161,7 +195,6 @@ class ForumViewModel @Inject constructor(
             onComplete(false, "You must be logged in to post.")
             return
         }
-
         val authorId = currentUser.uid
 
         viewModelScope.launch {
@@ -227,59 +260,5 @@ class ForumViewModel @Inject constructor(
         docRef.set(newPost)
             .addOnSuccessListener { onComplete(true, "Post created successfully!") }
             .addOnFailureListener { e -> onComplete(false, "Failed to create post: ${e.message}") }
-    }
-
-    fun fetchCommentsForPost(postId: String) {
-        firestore.collection("forum_posts").document(postId).collection("comments")
-            .orderBy("timestamp", Query.Direction.ASCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    error.printStackTrace()
-                    return@addSnapshotListener
-                }
-                if (snapshot != null) {
-                    _comments.value = snapshot.documents.mapNotNull { it.toObject(Comment::class.java) }
-                }
-            }
-    }
-
-    fun addComment(postId: String, content: String, onComplete: () -> Unit) {
-        val currentUser = Firebase.auth.currentUser ?: return
-        val authorId = currentUser.uid
-
-        viewModelScope.launch {
-            try {
-                val userDoc = firestore.collection("users").document(authorId).get().await()
-                val profileName = userDoc.getString("name")
-
-                val authorName = if (!profileName.isNullOrBlank()) {
-                    "u/$profileName"
-                } else if (!currentUser.displayName.isNullOrBlank()) {
-                    "u/${currentUser.displayName}"
-                } else {
-                    "u/Anonymous"
-                }
-
-                val postRef = firestore.collection("forum_posts").document(postId)
-                val commentRef = postRef.collection("comments").document()
-
-                val comment = Comment(
-                    id = commentRef.id,
-                    postId = postId,
-                    authorName = authorName,
-                    content = content,
-                    timestamp = System.currentTimeMillis()
-                )
-
-                firestore.runBatch { batch ->
-                    batch.set(commentRef, comment)
-                    batch.update(postRef, "commentCount", FieldValue.increment(1))
-                }.addOnSuccessListener {
-                    onComplete()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
     }
 }
