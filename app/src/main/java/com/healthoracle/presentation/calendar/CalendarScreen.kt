@@ -1,5 +1,8 @@
 package com.healthoracle.presentation.calendar
 
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,12 +16,14 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,6 +32,7 @@ import com.healthoracle.data.local.entity.AppointmentEntity
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +40,21 @@ fun CalendarScreen(
     onNavigateBack: () -> Unit,
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val scheduler = remember { NotificationScheduler(context) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     val appointments by viewModel.appointments.collectAsState()
 
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
@@ -44,12 +65,26 @@ fun CalendarScreen(
     var newAppointmentTime by remember { mutableStateOf("") }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("My Appointments") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    // NEW: Test Button in the top right corner
+                    IconButton(
+                        onClick = {
+                            scheduler.scheduleTestNotification()
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Test notification arriving in 5 seconds...")
+                            }
+                        }
+                    ) {
+                        Icon(imageVector = Icons.Default.NotificationsActive, contentDescription = "Test Notification")
                     }
                 }
             )
@@ -94,7 +129,11 @@ fun CalendarScreen(
             SelectedDateDetails(
                 selectedDate = selectedDate,
                 dailyAppointments = appointments[selectedDate] ?: emptyList(),
-                onDeleteAppointment = { viewModel.deleteAppointment(it) }
+                onDeleteAppointment = { appointment ->
+                    viewModel.deleteAppointment(appointment) { alarmId ->
+                        scheduler.cancel(alarmId)
+                    }
+                }
             )
         }
 
@@ -124,12 +163,19 @@ fun CalendarScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (newAppointmentTitle.isNotBlank()) {
+                            if (newAppointmentTitle.isNotBlank() && newAppointmentTime.isNotBlank()) {
                                 viewModel.addAppointment(
                                     title = newAppointmentTitle,
                                     time = newAppointmentTime,
                                     date = selectedDate
-                                )
+                                ) { alarmId ->
+                                    scheduler.schedule(
+                                        appointmentId = alarmId,
+                                        title = newAppointmentTitle,
+                                        timeStr = newAppointmentTime,
+                                        date = selectedDate
+                                    )
+                                }
                                 newAppointmentTitle = ""
                                 newAppointmentTime = ""
                                 showAddDialog = false

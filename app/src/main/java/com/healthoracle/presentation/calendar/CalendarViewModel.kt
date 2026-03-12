@@ -18,24 +18,28 @@ class CalendarViewModel @Inject constructor(
     private val appointmentDao: AppointmentDao
 ) : ViewModel() {
 
-    // Automatically pulls appointments and groups them by their LocalDate
     val appointments: StateFlow<Map<LocalDate, List<AppointmentEntity>>> = appointmentDao.getAllAppointments()
         .map { list ->
             list.groupBy { LocalDate.parse(it.date) }
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
-    fun addAppointment(title: String, time: String, date: LocalDate) {
+    fun addAppointment(title: String, time: String, date: LocalDate, onSaved: (Int) -> Unit) {
         viewModelScope.launch {
             appointmentDao.insertAppointment(
                 AppointmentEntity(title = title, time = time, date = date.toString())
             )
+            // Generate a unique ID to tie this database entry to the AlarmManager
+            val alarmId = (title + time + date.toString()).hashCode()
+            onSaved(alarmId)
         }
     }
 
-    fun deleteAppointment(appointment: AppointmentEntity) {
+    fun deleteAppointment(appointment: AppointmentEntity, onDeleted: (Int) -> Unit) {
         viewModelScope.launch {
             appointmentDao.deleteAppointment(appointment)
+            val alarmId = (appointment.title + appointment.time + appointment.date).hashCode()
+            onDeleted(alarmId)
         }
     }
 }
