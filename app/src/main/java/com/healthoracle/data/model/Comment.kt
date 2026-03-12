@@ -1,10 +1,11 @@
 package com.healthoracle.data.model
 
+import com.google.firebase.firestore.DocumentId
+
 data class Comment(
-    val id: String = "",
+    @DocumentId val id: String = "",
     val postId: String = "",
-    val authorId: String = "",
-    val authorName: String = "Anonymous",
-    val text: String = "",
-    val timestampMillis: Long = System.currentTimeMillis()
+    val authorName: String = "",
+    val content: String = "",
+    val timestamp: Long = System.currentTimeMillis()
 )

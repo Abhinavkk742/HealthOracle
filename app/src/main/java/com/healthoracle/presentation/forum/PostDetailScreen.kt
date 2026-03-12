@@ -1,34 +1,42 @@
 package com.healthoracle.presentation.forum
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.healthoracle.data.model.Comment
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import coil.compose.AsyncImage
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDetailScreen(
+    postId: String,
     onNavigateBack: () -> Unit,
-    viewModel: PostDetailViewModel = hiltViewModel()
+    viewModel: PostDetailViewModel = hiltViewModel() // Using the specific Detail ViewModel
 ) {
     val post by viewModel.post.collectAsState()
     val comments by viewModel.comments.collectAsState()
@@ -36,26 +44,29 @@ fun PostDetailScreen(
     val isCommenting by viewModel.isCommenting.collectAsState()
 
     var commentText by remember { mutableStateOf("") }
+    val currentUserId = Firebase.auth.currentUser?.uid ?: ""
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Discussion", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
             )
         },
         bottomBar = {
+            // Sticky Comment Input
             Surface(
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
+                shadowElevation = 8.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                         .navigationBarsPadding(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -65,108 +76,117 @@ fun PostDetailScreen(
                         placeholder = { Text("Add a comment...") },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(24.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary
-                        )
+                        maxLines = 3,
+                        enabled = !isCommenting
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-                            viewModel.addComment(commentText)
-                            commentText = ""
+                            if (commentText.isNotBlank()) {
+                                viewModel.addComment(commentText)
+                                commentText = "" // Clear after sending
+                            }
                         },
-                        enabled = commentText.isNotBlank() && !isCommenting,
                         modifier = Modifier
                             .size(48.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .clip(CircleShape)
+                            .background(
+                                if (commentText.isNotBlank() && !isCommenting)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                        enabled = commentText.isNotBlank() && !isCommenting
                     ) {
                         if (isCommenting) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
                         } else {
-                            Icon(Icons.Default.Send, contentDescription = "Send", tint = MaterialTheme.colorScheme.onPrimary)
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Send",
+                                tint = if (commentText.isNotBlank()) Color.White else Color.Gray
+                            )
                         }
                     }
                 }
             }
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.primary)
-            } else if (post != null) {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // 1. The Original Post
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else if (post == null) {
+                Text("Post not found", modifier = Modifier.align(Alignment.Center))
+            } else {
+                val currentPost = post!!
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    // 1. The Post Content
                     item {
-                        val sdf = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault())
-                        val dateString = sdf.format(Date(post!!.timestampMillis))
-
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Icon(Icons.Default.AccountCircle, null, modifier = Modifier.size(32.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Column {
-                                    Text(text = post!!.authorName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                    Text(text = dateString, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(currentPost.authorName, fontWeight = FontWeight.Bold)
+                                    Text(currentPost.timeAgo, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(currentPost.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(currentPost.content, style = MaterialTheme.typography.bodyLarge)
+
+                            if (currentPost.imageUrls.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(
+                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    currentPost.imageUrls.forEach { url ->
+                                        AsyncImage(
+                                            model = url,
+                                            contentDescription = null,
+                                            modifier = Modifier.width(300.dp).height(200.dp).clip(RoundedCornerShape(12.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                }
+                            }
+
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text(text = post!!.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = post!!.description, style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp))
-                            Spacer(modifier = Modifier.height(24.dp))
                             HorizontalDivider()
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = "${comments.size} Comments", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                            // Stats Row
+                            Row(modifier = Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.ArrowUpward, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                                Text(" ${currentPost.upvotes} ", fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Icon(Icons.Default.ChatBubbleOutline, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                                Text(" ${currentPost.commentCount}")
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Icon(Icons.Default.Visibility, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                                Text(" ${currentPost.viewCount}")
+                            }
+                            HorizontalDivider()
                         }
                     }
 
-                    // 2. The Comments List
+                    // 2. Comments Section
                     items(comments) { comment ->
-                        CommentItem(comment)
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            Text(comment.authorName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(comment.content, style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+                        }
                     }
                 }
-            } else {
-                Text("Post not found.", modifier = Modifier.align(Alignment.Center))
             }
-        }
-    }
-}
-
-@Composable
-fun CommentItem(comment: Comment) {
-    val sdf = SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault())
-    val dateString = sdf.format(Date(comment.timestampMillis))
-
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(0.dp, 16.dp, 16.dp, 16.dp))
-                .padding(12.dp)
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(text = comment.authorName, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                Text(text = dateString, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = comment.text, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

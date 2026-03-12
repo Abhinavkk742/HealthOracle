@@ -173,7 +173,11 @@ fun HealthOracleNavGraph(
                 navArgument("postId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
+            // NEW: Extracted the postId and passed it down to the screen
+            val postId = backStackEntry.arguments?.getString("postId") ?: return@composable
+
             com.healthoracle.presentation.forum.PostDetailScreen(
+                postId = postId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

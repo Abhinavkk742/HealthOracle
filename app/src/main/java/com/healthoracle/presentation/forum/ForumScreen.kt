@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import com.healthoracle.data.model.ForumPost
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,8 +125,8 @@ fun ForumScreen(
                             viewModel.incrementViewCount(post.id)
                             onNavigateToPostDetail(post.id)
                         },
-                        onUpvote = { viewModel.upvotePost(post.id, post.upvotes) },
-                        onDownvote = { viewModel.downvotePost(post.id, post.upvotes) }
+                        onUpvote = { viewModel.toggleUpvote(post.id) },
+                        onDownvote = { viewModel.toggleDownvote(post.id) }
                     )
                 }
             }
@@ -160,11 +162,17 @@ fun RedditPostCard(
     onUpvote: () -> Unit,
     onDownvote: () -> Unit
 ) {
-    val upvoteColor = if (post.userVote == 1) Color(0xFFFF4500) else MaterialTheme.colorScheme.onSurfaceVariant
-    val downvoteColor = if (post.userVote == -1) Color(0xFF7193FF) else MaterialTheme.colorScheme.onSurfaceVariant
-    val scoreColor = when (post.userVote) {
-        1 -> Color(0xFFFF4500)
-        -1 -> Color(0xFF7193FF)
+    // FIX: Instead of checking a 'userVote' variable, we check the ID lists
+    val currentUserId = Firebase.auth.currentUser?.uid ?: ""
+    val hasUpvoted = post.upvotedBy.contains(currentUserId)
+    val hasDownvoted = post.downvotedBy.contains(currentUserId)
+
+    val upvoteColor = if (hasUpvoted) Color(0xFFFF4500) else MaterialTheme.colorScheme.onSurfaceVariant
+    val downvoteColor = if (hasDownvoted) Color(0xFF7193FF) else MaterialTheme.colorScheme.onSurfaceVariant
+
+    val scoreColor = when {
+        hasUpvoted -> Color(0xFFFF4500)
+        hasDownvoted -> Color(0xFF7193FF)
         else -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -223,7 +231,6 @@ fun RedditPostCard(
                 lineHeight = 20.sp
             )
 
-            // Multiple image horizontal carousel
             if (post.imageUrls.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
@@ -237,7 +244,7 @@ fun RedditPostCard(
                             model = url,
                             contentDescription = "Post Image",
                             modifier = Modifier
-                                .fillMaxWidth(if (post.imageUrls.size > 1) 0.85f else 1f) // Show edge of next image if > 1
+                                .fillMaxWidth(if (post.imageUrls.size > 1) 0.85f else 1f)
                                 .height(200.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
@@ -344,7 +351,7 @@ fun RedditPostCard(
                 Spacer(modifier = Modifier.weight(1f))
 
                 IconButton(
-                    onClick = { /* TODO: Share intent */ },
+                    onClick = { /* Share Logic */ },
                     modifier = Modifier
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))

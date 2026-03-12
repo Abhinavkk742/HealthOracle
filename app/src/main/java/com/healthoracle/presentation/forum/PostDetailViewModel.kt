@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.QuerySnapshot
 import com.healthoracle.data.model.Comment
-import com.healthoracle.data.model.Post
+import com.healthoracle.data.model.ForumPost // Updated to match our main model
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,8 +27,8 @@ class PostDetailViewModel @Inject constructor(
 
     private val postId: String = checkNotNull(savedStateHandle["postId"])
 
-    private val _post = MutableStateFlow<Post?>(null)
-    val post: StateFlow<Post?> = _post.asStateFlow()
+    private val _post = MutableStateFlow<ForumPost?>(null)
+    val post: StateFlow<ForumPost?> = _post.asStateFlow()
 
     private val _comments = MutableStateFlow<List<Comment>>(emptyList())
     val comments: StateFlow<List<Comment>> = _comments.asStateFlow()
@@ -45,45 +47,35 @@ class PostDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // --- 1. Fetch and update the main Post ---
-                val postDoc = firestore.collection("posts").document(postId).get().await()
-                val rawPost = postDoc.toObject(Post::class.java)?.copy(id = postDoc.id)
+                // --- 1. Fetch and update the main Post (using "forum_posts") ---
+                val postDoc: DocumentSnapshot = firestore.collection("forum_posts")
+                    .document(postId)
+                    .get()
+                    .await()
+
+                val rawPost = postDoc.toObject(ForumPost::class.java)
 
                 if (rawPost != null) {
-                    try {
-                        val userDoc = firestore.collection("users").document(rawPost.authorId).get().await()
-                        val latestName = userDoc.getString("name") ?: rawPost.authorName
-                        _post.value = rawPost.copy(authorName = latestName)
-                    } catch (e: Exception) {
-                        _post.value = rawPost
-                    }
+                    _post.value = rawPost
                 }
 
                 // --- 2. Fetch and update the Comments ---
-                val commentsSnapshot = firestore.collection("posts").document(postId)
+                // Added explicit type for direction and snapshot to fix the inference error
+                val direction: Query.Direction = Query.Direction.ASCENDING
+
+                val commentsSnapshot: QuerySnapshot = firestore.collection("forum_posts")
+                    .document(postId)
                     .collection("comments")
-                    .orderBy("timestampMillis", Query.Direction.ASCENDING)
-                    .get().await()
+                    .orderBy("timestamp", direction)
+                    .get()
+                    .await()
 
                 val rawComments = commentsSnapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Comment::class.java)?.copy(id = doc.id)
+                    doc.toObject(Comment::class.java)
                 }
 
-                val uniqueAuthorIds = rawComments.map { it.authorId }.toSet()
-                val latestAuthorNames = mutableMapOf<String, String>()
+                _comments.value = rawComments
 
-                for (id in uniqueAuthorIds) {
-                    try {
-                        val userDoc = firestore.collection("users").document(id).get().await()
-                        latestAuthorNames[id] = userDoc.getString("name") ?: "Anonymous"
-                    } catch (e: Exception) {}
-                }
-
-                val updatedComments = rawComments.map { comment ->
-                    comment.copy(authorName = latestAuthorNames[comment.authorId] ?: comment.authorName)
-                }
-
-                _comments.value = updatedComments
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -92,30 +84,37 @@ class PostDetailViewModel @Inject constructor(
         }
     }
 
-    fun addComment(text: String) {
+    fun addComment(content: String) { // Changed 'text' to 'content' to match Comment model
         val userId = auth.currentUser?.uid ?: return
-        if (text.isBlank()) return
+        if (content.isBlank()) return
 
         viewModelScope.launch {
             _isCommenting.value = true
             try {
-                var authorName = "Anonymous"
-                val userDoc = firestore.collection("users").document(userId).get().await()
-                if (userDoc.exists()) {
-                    authorName = userDoc.getString("name") ?: "Anonymous"
-                }
+                val currentUser = auth.currentUser
+                val authorName = if (currentUser?.displayName.isNullOrBlank()) "u/Anonymous" else "u/${currentUser?.displayName}"
 
                 val newComment = Comment(
                     postId = postId,
-                    authorId = userId,
                     authorName = authorName,
-                    text = text
+                    content = content, // Ensure this matches your Comment.kt field name
+                    timestamp = System.currentTimeMillis()
                 )
 
-                firestore.collection("posts").document(postId)
-                    .collection("comments").add(newComment).await()
+                // Add comment to the subcollection
+                firestore.collection("forum_posts")
+                    .document(postId)
+                    .collection("comments")
+                    .add(newComment)
+                    .await()
 
-                loadPostAndComments()
+                // Increment comment count on the main post
+                firestore.collection("forum_posts")
+                    .document(postId)
+                    .update("commentCount", com.google.firebase.firestore.FieldValue.increment(1))
+                    .await()
+
+                loadPostAndComments() // Refresh list
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
