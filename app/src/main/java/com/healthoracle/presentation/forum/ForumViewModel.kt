@@ -17,9 +17,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.tasks.await // NEW: Required for the Firestore fetch
+import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import javax.inject.Inject
@@ -31,14 +34,36 @@ class ForumViewModel @Inject constructor(
 
     private val cloudinaryUploadPreset = "krfgajle" // Keep your preset here!
 
-    private val _posts = MutableStateFlow<List<ForumPost>>(emptyList())
-    val posts: StateFlow<List<ForumPost>> = _posts.asStateFlow()
+    // NEW: Manage sorting state
+    private val _sortBy = MutableStateFlow("New")
+    val sortBy: StateFlow<String> = _sortBy.asStateFlow()
+
+    // Store the raw list from Firebase
+    private val _rawPosts = MutableStateFlow<List<ForumPost>>(emptyList())
+
+    // Combine the raw posts with the sort method to instantly arrange the feed
+    val posts: StateFlow<List<ForumPost>> = combine(_rawPosts, _sortBy) { postList, sortMethod ->
+        when (sortMethod) {
+            "New" -> postList.sortedByDescending { it.timestamp }
+            "Top" -> postList.sortedByDescending { it.upvotes }
+            "Hot" -> postList.sortedByDescending {
+                // A simple Reddit-style hotness formula: prioritizes engagement!
+                (it.upvotes * 2) + (it.commentCount * 3) + it.viewCount
+            }
+            else -> postList
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _comments = MutableStateFlow<List<Comment>>(emptyList())
     val comments: StateFlow<List<Comment>> = _comments.asStateFlow()
 
     init {
         fetchRealtimePosts()
+    }
+
+    // Update the sort method
+    fun setSortMethod(method: String) {
+        _sortBy.value = method
     }
 
     private fun fetchRealtimePosts() {
@@ -53,7 +78,7 @@ class ForumViewModel @Inject constructor(
                     val postList = snapshot.documents.mapNotNull { doc ->
                         doc.toObject(ForumPost::class.java)
                     }
-                    _posts.value = postList
+                    _rawPosts.value = postList // Feed the raw posts
                 }
             }
     }
@@ -141,7 +166,6 @@ class ForumViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // FIX: Look up the absolute latest name from the Firestore 'users' collection
                 val userDoc = firestore.collection("users").document(authorId).get().await()
                 val profileName = userDoc.getString("name")
 
@@ -225,7 +249,6 @@ class ForumViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // FIX: Always get the latest name for comments too
                 val userDoc = firestore.collection("users").document(authorId).get().await()
                 val profileName = userDoc.getString("name")
 

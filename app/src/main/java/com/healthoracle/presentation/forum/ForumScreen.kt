@@ -16,9 +16,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Flag // NEW
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.MoreVert // NEW
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbUp
@@ -49,7 +49,9 @@ fun ForumScreen(
     viewModel: ForumViewModel = hiltViewModel()
 ) {
     val posts by viewModel.posts.collectAsState()
-    var selectedSort by remember { mutableStateOf("Hot") }
+
+    // FIX: We now listen to the ViewModel's actual sort state instead of a local fake one!
+    val selectedSort by viewModel.sortBy.collectAsState()
 
     Scaffold(
         topBar = {
@@ -95,23 +97,24 @@ fun ForumScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // FIX: Clicking these actually re-sorts the feed!
                 SortChip(
                     label = "Hot",
                     icon = Icons.Default.LocalFireDepartment,
                     isSelected = selectedSort == "Hot",
-                    onClick = { selectedSort = "Hot" }
+                    onClick = { viewModel.setSortMethod("Hot") }
                 )
                 SortChip(
                     label = "New",
                     icon = Icons.Default.NewReleases,
                     isSelected = selectedSort == "New",
-                    onClick = { selectedSort = "New" }
+                    onClick = { viewModel.setSortMethod("New") }
                 )
                 SortChip(
                     label = "Top",
                     icon = Icons.Default.ThumbUp,
                     isSelected = selectedSort == "Top",
-                    onClick = { selectedSort = "Top" }
+                    onClick = { viewModel.setSortMethod("Top") }
                 )
             }
 
@@ -120,7 +123,7 @@ fun ForumScreen(
                 contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(posts) { post ->
+                items(posts, key = { it.id }) { post -> // Added a key for smoother scrolling animations
                     RedditPostCard(
                         post = post,
                         onClick = {
@@ -177,7 +180,6 @@ fun RedditPostCard(
         else -> MaterialTheme.colorScheme.onSurface
     }
 
-    // NEW: States for the Report Menu and Dialog
     var showCardMenu by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
 
@@ -230,9 +232,8 @@ fun RedditPostCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.weight(1f)) // Pushes the menu to the far right edge
+                Spacer(modifier = Modifier.weight(1f))
 
-                // NEW: 3-Dot Options Menu
                 Box {
                     IconButton(onClick = { showCardMenu = true }, modifier = Modifier.size(24.dp)) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
