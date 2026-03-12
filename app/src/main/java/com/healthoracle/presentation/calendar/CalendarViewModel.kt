@@ -40,12 +40,24 @@ class CalendarViewModel @Inject constructor(
 
     fun deleteAppointment(appointment: AppointmentEntity, onDeleted: (Int) -> Unit) {
         viewModelScope.launch {
+            // 1. Delete locally from Room
             appointmentDao.deleteAppointment(appointment)
+
+            // 2. Proactively delete from Firebase if logged in
+            val userId = Firebase.auth.currentUser?.uid
+            if (userId != null) {
+                firestore.collection("users").document(userId)
+                    .collection("appointments").document(appointment.id.toString())
+                    .delete()
+            }
+
+            // 3. Cancel the local alarm notification
             val alarmId = (appointment.title + appointment.time + appointment.date).hashCode()
             onDeleted(alarmId)
         }
     }
 
+    // Upgraded true-mirror cloud sync
     fun syncToCloud(onComplete: (Boolean, String) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid
         if (userId == null) {
@@ -56,26 +68,46 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val localAppointments = appointmentDao.getAppointmentsList()
-                val batch = firestore.batch()
+                val localIds = localAppointments.map { it.id.toString() }
 
-                localAppointments.forEach { appt ->
-                    val docRef = firestore.collection("users").document(userId)
-                        .collection("appointments").document(appt.id.toString())
+                // Fetch the current cloud state first
+                firestore.collection("users").document(userId)
+                    .collection("appointments")
+                    .get()
+                    .addOnSuccessListener { snapshot ->
+                        val batch = firestore.batch()
 
-                    val data = mapOf(
-                        "title" to appt.title,
-                        "time" to appt.time,
-                        "date" to appt.date
-                    )
-                    batch.set(docRef, data)
-                }
+                        // Step 1: Delete appointments from the cloud that no longer exist locally
+                        for (doc in snapshot.documents) {
+                            if (!localIds.contains(doc.id)) {
+                                batch.delete(doc.reference)
+                            }
+                        }
 
-                batch.commit()
-                    .addOnSuccessListener {
-                        onComplete(true, "Successfully synced to Firebase!")
+                        // Step 2: Upload or update all current local appointments
+                        localAppointments.forEach { appt ->
+                            val docRef = firestore.collection("users").document(userId)
+                                .collection("appointments").document(appt.id.toString())
+
+                            val data = mapOf(
+                                "title" to appt.title,
+                                "time" to appt.time,
+                                "date" to appt.date
+                            )
+                            batch.set(docRef, data)
+                        }
+
+                        // Execute the batch (deletes and sets together)
+                        batch.commit()
+                            .addOnSuccessListener {
+                                onComplete(true, "Successfully synced to Firebase!")
+                            }
+                            .addOnFailureListener { e ->
+                                onComplete(false, "Sync failed: ${e.message}")
+                            }
                     }
                     .addOnFailureListener { e ->
-                        onComplete(false, "Sync failed: ${e.message}")
+                        onComplete(false, "Failed to fetch cloud data: ${e.message}")
                     }
             } catch (e: Exception) {
                 onComplete(false, "An error occurred: ${e.message}")
@@ -83,7 +115,6 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    // NEW: Download appointments from Firestore and save them locally
     fun downloadFromCloud(onComplete: (Boolean, String) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid
         if (userId == null) {
@@ -107,7 +138,6 @@ class CalendarViewModel @Inject constructor(
                             val time = document.getString("time") ?: continue
                             val date = document.getString("date") ?: continue
 
-                            // Parse the document ID back to an Int so Room can replace duplicates correctly
                             val id = document.id.toIntOrNull() ?: 0
 
                             appointmentDao.insertAppointment(
