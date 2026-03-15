@@ -28,11 +28,34 @@ class CalendarViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
+    init {
+        // Automatically fetch cloud appointments when the ViewModel initializes
+        downloadFromCloud { _, _ -> }
+    }
+
     fun addAppointment(title: String, time: String, date: LocalDate, category: String, description: String, onSaved: (Int) -> Unit) {
         viewModelScope.launch {
-            appointmentDao.insertAppointment(
+            // 1. Insert locally and get the auto-generated ID
+            val generatedId = appointmentDao.insertAppointment(
                 AppointmentEntity(title = title, time = time, date = date.toString(), category = category, description = description)
             )
+
+            // 2. Automatically sync this new appointment to Firebase
+            val userId = Firebase.auth.currentUser?.uid
+            if (userId != null) {
+                val appointmentMap = mapOf(
+                    "title" to title,
+                    "time" to time,
+                    "date" to date.toString(),
+                    "category" to category,
+                    "description" to description
+                )
+                firestore.collection("users").document(userId)
+                    .collection("appointments").document(generatedId.toString())
+                    .set(appointmentMap)
+            }
+
+            // 3. Return alarm ID for notification
             val alarmId = (title + time + date.toString()).hashCode()
             onSaved(alarmId)
         }
@@ -54,6 +77,7 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    // Kept for manual force-sync if you still want a button, but no longer strictly required
     fun syncToCloud(onComplete: (Boolean, String) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid
         if (userId == null) {

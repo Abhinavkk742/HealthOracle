@@ -13,12 +13,13 @@ interface AppointmentDao {
     @Query("SELECT * FROM appointments")
     fun getAllAppointments(): Flow<List<AppointmentEntity>>
 
-    // NEW: Fetch a one-time list of appointments specifically for cloud syncing
+    // Fetch a one-time list of appointments specifically for cloud syncing
     @Query("SELECT * FROM appointments")
     suspend fun getAppointmentsList(): List<AppointmentEntity>
 
+    // Return Long so we can get the auto-generated ID for Firebase sync
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAppointment(appointment: AppointmentEntity)
+    suspend fun insertAppointment(appointment: AppointmentEntity): Long
 
     @Delete
     suspend fun deleteAppointment(appointment: AppointmentEntity)

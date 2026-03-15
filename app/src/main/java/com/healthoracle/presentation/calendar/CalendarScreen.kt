@@ -22,8 +22,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.LocalHospital
@@ -102,27 +100,6 @@ fun CalendarScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            viewModel.downloadFromCloud { success, message ->
-                                coroutineScope.launch { snackbarHostState.showSnackbar(message) }
-                            }
-                        }
-                    ) {
-                        Icon(imageVector = Icons.Default.CloudDownload, contentDescription = "Download from Cloud")
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.syncToCloud { success, message ->
-                                coroutineScope.launch { snackbarHostState.showSnackbar(message) }
-                            }
-                        }
-                    ) {
-                        Icon(imageVector = Icons.Default.CloudUpload, contentDescription = "Sync to Cloud")
                     }
                 }
             )
