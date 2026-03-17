@@ -9,8 +9,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Article // NEW
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Chat // NEW
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
@@ -34,7 +35,8 @@ fun ProfileScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToMyPosts: () -> Unit, // NEW: Navigation trigger for My Posts
+    onNavigateToMyPosts: () -> Unit,
+    onNavigateToChat: (patientId: String, doctorId: String, contactName: String) -> Unit, // NEW
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -234,7 +236,6 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // NEW: View My Posts Button
                 OutlinedButton(
                     onClick = onNavigateToMyPosts,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -243,6 +244,27 @@ fun ProfileScreen(
                     Icon(Icons.Default.Article, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("View My Posts", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // NEW: Doctor Chat Button (Only visible if assigned to a doctor)
+                if (uiState.profile.role == "patient" && !uiState.profile.assignedDoctorId.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            onNavigateToChat(
+                                uiState.profile.uid,
+                                uiState.profile.assignedDoctorId!!,
+                                "My Doctor"
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Icon(Icons.Default.Chat, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Message My Doctor", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))

@@ -85,7 +85,11 @@ fun HealthOracleNavGraph(
                 onNavigateToForum = { navController.navigate(Screen.Forum.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onNavigateToHistory = { navController.navigate(Screen.History.route) },
-                onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) }
+                onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
+                // NEW: Triggers the navigation
+                onNavigateToChat = { patientId, doctorId, contactName ->
+                    navController.navigate(Screen.Chat.createRoute(patientId, doctorId, contactName))
+                }
             )
         }
 
@@ -94,6 +98,10 @@ fun HealthOracleNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToMyPosts = { navController.navigate("my_posts") },
+                // NEW: Triggers the navigation
+                onNavigateToChat = { patientId, doctorId, contactName ->
+                    navController.navigate(Screen.Chat.createRoute(patientId, doctorId, contactName))
+                },
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
