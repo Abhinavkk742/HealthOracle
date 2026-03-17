@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions // NEW: Required for merging data safely
 import com.healthoracle.domain.model.UserProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,17 +66,27 @@ class ProfileViewModel @Inject constructor(
             val userId = currentUser?.uid ?: return@launch
 
             try {
-                // NEW: Update the core Firebase Auth display name so new posts grab the right name!
                 val profileUpdates = userProfileChangeRequest {
                     displayName = name
                 }
                 currentUser.updateProfile(profileUpdates).await()
 
-                // Save to Firestore Database
-                val profileToSave = UserProfile(userId, name, dob, age, gender, height, weight)
-                firestore.collection("users").document(userId).set(profileToSave).await()
+                // Preserve existing role and assignedDoctorId from the currently loaded state
+                val currentProfile = _uiState.value.profile
+                val profileToSave = currentProfile.copy(
+                    uid = userId,
+                    name = name,
+                    dob = dob,
+                    age = age,
+                    gender = gender,
+                    heightCm = height,
+                    weightKg = weight
+                )
 
-                // Sweep the forum for old posts
+                // NEW: Use SetOptions.merge() so it only updates fields present in the object
+                // without deleting anything else in the database document!
+                firestore.collection("users").document(userId).set(profileToSave, SetOptions.merge()).await()
+
                 syncNewNameToForum(name)
 
                 _uiState.value = _uiState.value.copy(
@@ -117,8 +128,7 @@ class ProfileViewModel @Inject constructor(
                         }
                     }.await()
                 }
-            }catch (e: Exception) {
-                // Let's make the silent failure incredibly loud!
+            } catch (e: Exception) {
                 android.util.Log.e("FIREBASE_ERROR", "NAME SYNC FAILED: ${e.message}")
                 e.printStackTrace()
             }
