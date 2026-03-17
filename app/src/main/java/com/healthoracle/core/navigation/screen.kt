@@ -29,4 +29,11 @@ sealed class Screen(val route: String) {
             "ai_suggestion/$conditionName/$conditionSource"
     }
     data object Calendar : Screen("calendar")
+
+    // NEW: Phase 5 - Tele-health Screens
+    data object DoctorDashboard : Screen("doctor_dashboard")
+    data object Chat : Screen("chat/{patientId}/{doctorId}/{contactName}") {
+        fun createRoute(patientId: String, doctorId: String, contactName: String): String =
+            "chat/$patientId/$doctorId/$contactName"
+    }
 }

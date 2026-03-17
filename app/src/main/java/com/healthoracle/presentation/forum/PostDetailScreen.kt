@@ -6,8 +6,9 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.verticalScroll // Added missing import
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,7 +22,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,8 +54,11 @@ fun PostDetailScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
 
-    // NEW: Report state
+    // Report state
     var showReportDialog by remember { mutableStateOf(false) }
+
+    // Full screen image state
+    var selectedImageUrl by remember { mutableStateOf<String?>(null) }
 
     // Tracks who the user is replying to
     var replyingTo by remember { mutableStateOf<Comment?>(null) }
@@ -81,7 +88,6 @@ fun PostDetailScreen(
                     IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, "Back") }
                 },
                 actions = {
-                    // FIX: Always show the menu icon, but change what's inside it based on ownership!
                     IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, "Options") }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         if (post?.authorId == currentUserId) {
@@ -176,6 +182,69 @@ fun PostDetailScreen(
             )
         }
 
+        // Full Screen Zoomable Image Dialog
+        if (selectedImageUrl != null) {
+            Dialog(
+                onDismissRequest = { selectedImageUrl = null },
+                properties = DialogProperties(
+                    usePlatformDefaultWidth = false, // Takes up full screen
+                    dismissOnBackPress = true
+                )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                ) {
+                    var scale by remember { mutableFloatStateOf(1f) }
+                    var offset by remember { mutableStateOf(Offset.Zero) }
+
+                    AsyncImage(
+                        model = selectedImageUrl,
+                        contentDescription = "Zoomed Image",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    // Limit zoom between 1x and 5x
+                                    scale = (scale * zoom).coerceIn(1f, 5f)
+
+                                    // Calculate boundaries to prevent panning out of view when zoomed
+                                    val maxX = (size.width * (scale - 1)) / 2
+                                    val maxY = (size.height * (scale - 1)) / 2
+
+                                    val newOffsetX = offset.x + pan.x * scale
+                                    val newOffsetY = offset.y + pan.y * scale
+
+                                    offset = Offset(
+                                        newOffsetX.coerceIn(-maxX, maxX),
+                                        newOffsetY.coerceIn(-maxY, maxY)
+                                    )
+                                }
+                            }
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offset.x,
+                                translationY = offset.y
+                            ),
+                        contentScale = ContentScale.Fit
+                    )
+
+                    // Close Button
+                    IconButton(
+                        onClick = { selectedImageUrl = null },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                    }
+                }
+            }
+        }
+
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -205,7 +274,11 @@ fun PostDetailScreen(
                                             AsyncImage(
                                                 model = url,
                                                 contentDescription = null,
-                                                modifier = Modifier.width(300.dp).height(200.dp).clip(RoundedCornerShape(12.dp)),
+                                                modifier = Modifier
+                                                    .width(300.dp)
+                                                    .height(200.dp)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .clickable { selectedImageUrl = url }, // Make image clickable to zoom
                                                 contentScale = ContentScale.Crop
                                             )
                                         }

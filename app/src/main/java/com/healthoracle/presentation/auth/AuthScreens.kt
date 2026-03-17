@@ -30,6 +30,7 @@ import com.healthoracle.R
 @Composable
 fun LoginScreen(
     onNavigateToHome: () -> Unit,
+    onNavigateToDoctorDashboard: () -> Unit, // NEW: Added routing option for doctors
     onNavigateToSignUp: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -39,7 +40,6 @@ fun LoginScreen(
 
     val context = LocalContext.current
 
-    // --- NEW: Google Sign-In Launcher ---
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -48,7 +48,9 @@ fun LoginScreen(
             try {
                 val account = task.getResult(ApiException::class.java)
                 account?.idToken?.let { token ->
-                    viewModel.signInWithGoogle(token, onNavigateToHome)
+                    viewModel.signInWithGoogle(token) { isDoctor ->
+                        if (isDoctor) onNavigateToDoctorDashboard() else onNavigateToHome()
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -98,7 +100,11 @@ fun LoginScreen(
         }
 
         Button(
-            onClick = { viewModel.login(email, password, onNavigateToHome) },
+            onClick = {
+                viewModel.login(email, password) { isDoctor ->
+                    if (isDoctor) onNavigateToDoctorDashboard() else onNavigateToHome()
+                }
+            },
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp),
             enabled = !uiState.isLoading
@@ -107,7 +113,6 @@ fun LoginScreen(
             else Text("Login", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
 
-        // --- NEW: Google Sign-In UI ---
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
@@ -119,14 +124,12 @@ fun LoginScreen(
 
         OutlinedButton(
             onClick = {
-                // We ask Google to give us an ID token linked to your specific app client
                 val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                     .requestIdToken(context.getString(R.string.default_web_client_id))
                     .requestEmail()
                     .build()
                 val googleSignInClient = GoogleSignIn.getClient(context, gso)
 
-                // Clear any previous sign-in states to force the account picker to show
                 googleSignInClient.signOut().addOnCompleteListener {
                     googleSignInLauncher.launch(googleSignInClient.signInIntent)
                 }
@@ -197,7 +200,12 @@ fun SignUpScreen(
         }
 
         Button(
-            onClick = { viewModel.signUp(email, password, onNavigateToHome) },
+            onClick = {
+                // SignUp passes false for isDoctor, so we just route to Home
+                viewModel.signUp(email, password) { _ ->
+                    onNavigateToHome()
+                }
+            },
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp),
             enabled = !uiState.isLoading

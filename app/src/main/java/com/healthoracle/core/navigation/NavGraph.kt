@@ -5,6 +5,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -14,6 +17,8 @@ import com.healthoracle.presentation.aisuggestion.AiSuggestionScreen
 import com.healthoracle.presentation.auth.LoginScreen
 import com.healthoracle.presentation.auth.SignUpScreen
 import com.healthoracle.presentation.calendar.CalendarScreen
+import com.healthoracle.presentation.chat.ChatScreen
+import com.healthoracle.presentation.chat.ChatViewModel
 import com.healthoracle.presentation.diabetes.DiabetesScreen
 import com.healthoracle.presentation.forum.ForumScreen
 import com.healthoracle.presentation.home.HomeScreen
@@ -23,7 +28,7 @@ import com.healthoracle.presentation.skin.SkinDiseaseScreen
 @Composable
 fun HealthOracleNavGraph(
     navController: NavHostController,
-    startDestination: String // NEW: Passed in dynamically
+    startDestination: String // Passed in dynamically
 ) {
     NavHost(
         navController = navController,
@@ -49,6 +54,12 @@ fun HealthOracleNavGraph(
             LoginScreen(
                 onNavigateToHome = {
                     navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                // FIXED: Added the routing for the Doctor Dashboard
+                onNavigateToDoctorDashboard = {
+                    navController.navigate(Screen.DoctorDashboard.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
@@ -82,7 +93,7 @@ fun HealthOracleNavGraph(
             com.healthoracle.presentation.profile.ProfileScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onNavigateToMyPosts = { navController.navigate("my_posts") }, // <--- TRIGGER
+                onNavigateToMyPosts = { navController.navigate("my_posts") },
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -182,12 +193,49 @@ fun HealthOracleNavGraph(
             )
         }
 
-        // NEW: My Posts Screen Destination
         composable(route = "my_posts") {
             com.healthoracle.presentation.profile.MyPostsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToPostDetail = { postId ->
                     navController.navigate(Screen.PostDetail.createRoute(postId))
+                }
+            )
+        }
+
+        // Tele-health Chat Screen
+        composable(
+            route = Screen.Chat.route,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("doctorId") { type = NavType.StringType },
+                navArgument("contactName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val contactName = backStackEntry.arguments?.getString("contactName") ?: "Doctor"
+
+            // Initialize the ViewModel (Hilt handles injecting the repository and SavedStateHandle)
+            val chatViewModel: ChatViewModel = hiltViewModel()
+            val messages by chatViewModel.messages.collectAsState()
+
+            ChatScreen(
+                contactName = contactName,
+                currentUserId = chatViewModel.currentUserId,
+                messages = messages,
+                onSendMessage = { text -> chatViewModel.sendMessage(text) },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Doctor Dashboard Screen
+        composable(route = Screen.DoctorDashboard.route) {
+            com.healthoracle.presentation.doctor.DoctorDashboardScreen(
+                onNavigateToChat = { patientId, doctorId, patientName ->
+                    navController.navigate(Screen.Chat.createRoute(patientId, doctorId, patientName))
+                },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true } // Clear backstack and go to login
+                    }
                 }
             )
         }
