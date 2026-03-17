@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions // NEW: Required for merging data safely
+import com.google.firebase.firestore.SetOptions
 import com.healthoracle.domain.model.UserProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +20,8 @@ data class ProfileUiState(
     val isSaving: Boolean = false,
     val profile: UserProfile = UserProfile(),
     val error: String? = null,
-    val saveSuccess: Boolean = false
+    val saveSuccess: Boolean = false,
+    val linkSuccess: Boolean = false // NEW
 )
 
 @HiltViewModel
@@ -48,7 +49,8 @@ class ProfileViewModel @Inject constructor(
                 val document = firestore.collection("users").document(userId).get().await()
                 if (document.exists()) {
                     val profile = document.toObject(UserProfile::class.java) ?: UserProfile(uid = userId)
-                    _uiState.value = _uiState.value.copy(isLoading = false, profile = profile)
+                    // Ensure the UID is always populated correctly
+                    _uiState.value = _uiState.value.copy(isLoading = false, profile = profile.copy(uid = userId))
                 } else {
                     _uiState.value = _uiState.value.copy(isLoading = false, profile = UserProfile(uid = userId))
                 }
@@ -58,9 +60,33 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    // NEW: Function to link a patient to a doctor
+    fun linkDoctor(doctorId: String) {
+        viewModelScope.launch {
+            val userId = auth.currentUser?.uid ?: return@launch
+            val cleanDoctorId = doctorId.trim()
+
+            try {
+                // Save just the assignedDoctorId to Firestore using merge
+                firestore.collection("users").document(userId)
+                    .set(mapOf("assignedDoctorId" to cleanDoctorId), SetOptions.merge())
+                    .await()
+
+                // Update local UI state
+                val currentProfile = _uiState.value.profile
+                _uiState.value = _uiState.value.copy(
+                    linkSuccess = true,
+                    profile = currentProfile.copy(assignedDoctorId = cleanDoctorId)
+                )
+            } catch(e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.localizedMessage)
+            }
+        }
+    }
+
     fun saveProfile(name: String, dob: String, age: Int, gender: String, height: Float, weight: Float) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSaving = true, saveSuccess = false, error = null)
+            _uiState.value = _uiState.value.copy(isSaving = true, saveSuccess = false, linkSuccess = false, error = null)
 
             val currentUser = auth.currentUser
             val userId = currentUser?.uid ?: return@launch
@@ -71,7 +97,6 @@ class ProfileViewModel @Inject constructor(
                 }
                 currentUser.updateProfile(profileUpdates).await()
 
-                // Preserve existing role and assignedDoctorId from the currently loaded state
                 val currentProfile = _uiState.value.profile
                 val profileToSave = currentProfile.copy(
                     uid = userId,
@@ -83,8 +108,6 @@ class ProfileViewModel @Inject constructor(
                     weightKg = weight
                 )
 
-                // NEW: Use SetOptions.merge() so it only updates fields present in the object
-                // without deleting anything else in the database document!
                 firestore.collection("users").document(userId).set(profileToSave, SetOptions.merge()).await()
 
                 syncNewNameToForum(name)
@@ -102,34 +125,22 @@ class ProfileViewModel @Inject constructor(
 
     private fun syncNewNameToForum(newName: String) {
         val userId = auth.currentUser?.uid ?: return
-
         viewModelScope.launch {
             try {
-                val userPosts = firestore.collection("forum_posts")
-                    .whereEqualTo("authorId", userId)
-                    .get().await()
-
+                val userPosts = firestore.collection("forum_posts").whereEqualTo("authorId", userId).get().await()
                 if (!userPosts.isEmpty) {
                     firestore.runBatch { batch ->
-                        userPosts.documents.forEach { doc ->
-                            batch.update(doc.reference, "authorName", "u/$newName")
-                        }
+                        userPosts.documents.forEach { doc -> batch.update(doc.reference, "authorName", "u/$newName") }
                     }.await()
                 }
 
-                val userComments = firestore.collectionGroup("comments")
-                    .whereEqualTo("authorId", userId)
-                    .get().await()
-
+                val userComments = firestore.collectionGroup("comments").whereEqualTo("authorId", userId).get().await()
                 if (!userComments.isEmpty) {
                     firestore.runBatch { batch ->
-                        userComments.documents.forEach { doc ->
-                            batch.update(doc.reference, "authorName", "u/$newName")
-                        }
+                        userComments.documents.forEach { doc -> batch.update(doc.reference, "authorName", "u/$newName") }
                     }.await()
                 }
             } catch (e: Exception) {
-                android.util.Log.e("FIREBASE_ERROR", "NAME SYNC FAILED: ${e.message}")
                 e.printStackTrace()
             }
         }

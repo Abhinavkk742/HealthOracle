@@ -74,6 +74,12 @@ fun HealthOracleNavGraph(
                         popUpTo(Screen.SignUp.route) { inclusive = true }
                     }
                 },
+                // NEW: Handle doctor signup routing
+                onNavigateToDoctorDashboard = {
+                    navController.navigate(Screen.DoctorDashboard.route) {
+                        popUpTo(Screen.SignUp.route) { inclusive = true }
+                    }
+                },
                 onNavigateToLogin = { navController.popBackStack() }
             )
         }

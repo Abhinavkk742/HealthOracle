@@ -11,7 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Chat // NEW
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
@@ -36,7 +36,7 @@ fun ProfileScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToMyPosts: () -> Unit,
-    onNavigateToChat: (patientId: String, doctorId: String, contactName: String) -> Unit, // NEW
+    onNavigateToChat: (patientId: String, doctorId: String, contactName: String) -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -246,24 +246,80 @@ fun ProfileScreen(
                     Text("View My Posts", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
-                // NEW: Doctor Chat Button (Only visible if assigned to a doctor)
-                if (uiState.profile.role == "patient" && !uiState.profile.assignedDoctorId.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = {
-                            onNavigateToChat(
-                                uiState.profile.uid,
-                                uiState.profile.assignedDoctorId!!,
-                                "My Doctor"
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) {
-                        Icon(Icons.Default.Chat, contentDescription = null)
+                // --- NEW: DOCTOR LINKING SYSTEM ---
+                HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp))
+
+                if (uiState.profile.role == "doctor") {
+                    // DOCTOR VIEW: Show their ID to share
+                    Text("Doctor Portal", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.Start))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = uiState.profile.uid,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Your Unique Doctor ID") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Share this ID with your patients so they can link their account to yours.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    // PATIENT VIEW: Field to enter Doctor ID
+                    Text("My Care Provider", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.Start))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    var doctorIdInput by remember(uiState.profile) { mutableStateOf(uiState.profile.assignedDoctorId ?: "") }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = doctorIdInput,
+                            onValueChange = { doctorIdInput = it },
+                            label = { Text("Enter Doctor ID") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Message My Doctor", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = { viewModel.linkDoctor(doctorIdInput) },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(56.dp)
+                        ) {
+                            Text(if (uiState.profile.assignedDoctorId.isNullOrEmpty()) "Link" else "Update")
+                        }
+                    }
+
+                    if (uiState.linkSuccess) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Doctor Linked Successfully!", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    // Show Chat Button if Linked
+                    if (!uiState.profile.assignedDoctorId.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                onNavigateToChat(
+                                    uiState.profile.uid,
+                                    uiState.profile.assignedDoctorId!!,
+                                    "My Doctor"
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Icon(Icons.Default.Chat, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Message My Doctor", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 

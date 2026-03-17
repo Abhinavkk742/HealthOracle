@@ -36,7 +36,6 @@ class AuthViewModel @Inject constructor(
 
                 var isDoctor = false
                 if (user != null) {
-                    // Check the user's role in Firestore
                     val userDoc = firestore.collection("users").document(user.uid).get().await()
                     isDoctor = userDoc.getString("role") == "doctor"
                 }
@@ -49,19 +48,19 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signUp(email: String, pass: String, onSuccess: (isDoctor: Boolean) -> Unit) {
+    // NEW: Added the 'role' parameter here
+    fun signUp(email: String, pass: String, role: String, onSuccess: (isDoctor: Boolean) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
                 val authResult = auth.createUserWithEmailAndPassword(email.trim(), pass).await()
                 val user = authResult.user
 
-                // Create a default profile in Firestore for the new user
                 if (user != null) {
                     val newUserProfile = hashMapOf(
                         "name" to "New User",
                         "email" to (user.email ?: ""),
-                        "role" to "patient", // Default role
+                        "role" to role, // NEW: Save the selected role!
                         "age" to 0,
                         "gender" to "",
                         "heightCm" to 0f,
@@ -72,7 +71,7 @@ class AuthViewModel @Inject constructor(
                 }
 
                 _uiState.value = _uiState.value.copy(isLoading = false)
-                onSuccess(false) // A new signup is never a doctor by default
+                onSuccess(role == "doctor") // Route them correctly based on their choice
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false, error = e.localizedMessage ?: "Sign up failed")
             }
@@ -92,11 +91,10 @@ class AuthViewModel @Inject constructor(
                     val userDoc = firestore.collection("users").document(user.uid).get().await()
 
                     if (!userDoc.exists()) {
-                        // First time logging in with Google, create profile
                         val newUserProfile = hashMapOf(
                             "name" to (user.displayName ?: "New User"),
                             "email" to (user.email ?: ""),
-                            "role" to "patient", // Default role
+                            "role" to "patient",
                             "age" to 0,
                             "gender" to "",
                             "heightCm" to 0f,
@@ -105,7 +103,6 @@ class AuthViewModel @Inject constructor(
                         )
                         firestore.collection("users").document(user.uid).set(newUserProfile).await()
                     } else {
-                        // Existing user, check their role
                         isDoctor = userDoc.getString("role") == "doctor"
                     }
                 }

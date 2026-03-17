@@ -30,7 +30,7 @@ import com.healthoracle.R
 @Composable
 fun LoginScreen(
     onNavigateToHome: () -> Unit,
-    onNavigateToDoctorDashboard: () -> Unit, // NEW: Added routing option for doctors
+    onNavigateToDoctorDashboard: () -> Unit,
     onNavigateToSignUp: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -153,12 +153,16 @@ fun LoginScreen(
 @Composable
 fun SignUpScreen(
     onNavigateToHome: () -> Unit,
+    onNavigateToDoctorDashboard: () -> Unit, // NEW: Added routing for Doctors
     onNavigateToLogin: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+    // NEW: State for the checkbox
+    var isDoctorAccount by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -193,6 +197,19 @@ fun SignUpScreen(
             shape = RoundedCornerShape(12.dp)
         )
 
+        // NEW: Checkbox to register as a doctor
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+        ) {
+            Checkbox(
+                checked = isDoctorAccount,
+                onCheckedChange = { isDoctorAccount = it },
+                colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
+            )
+            Text("Register as a Doctor / Care Provider", style = MaterialTheme.typography.bodyMedium)
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         if (uiState.error != null) {
@@ -201,9 +218,9 @@ fun SignUpScreen(
 
         Button(
             onClick = {
-                // SignUp passes false for isDoctor, so we just route to Home
-                viewModel.signUp(email, password) { _ ->
-                    onNavigateToHome()
+                val role = if (isDoctorAccount) "doctor" else "patient"
+                viewModel.signUp(email, password, role) { isDoctor ->
+                    if (isDoctor) onNavigateToDoctorDashboard() else onNavigateToHome()
                 }
             },
             modifier = Modifier.fillMaxWidth().height(56.dp),
