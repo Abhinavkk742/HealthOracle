@@ -24,6 +24,7 @@ import com.healthoracle.presentation.forum.ForumScreen
 import com.healthoracle.presentation.home.HomeScreen
 import com.healthoracle.presentation.onboarding.OnboardingScreen
 import com.healthoracle.presentation.skin.SkinDiseaseScreen
+import com.healthoracle.presentation.walktracker.WalkTrackerScreen
 
 @Composable
 fun HealthOracleNavGraph(
@@ -89,6 +90,7 @@ fun HealthOracleNavGraph(
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onNavigateToHistory = { navController.navigate(Screen.History.route) },
                 onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
+                onNavigateToWalkTracker = { navController.navigate(Screen.WalkTracker.route) },
                 onNavigateToChat = { patientId, doctorId, contactName ->
                     navController.navigate(Screen.Chat.createRoute(patientId, doctorId, contactName))
                 }
@@ -195,7 +197,6 @@ fun HealthOracleNavGraph(
             )
         ) { backStackEntry ->
             val postId = backStackEntry.arguments?.getString("postId") ?: return@composable
-
             com.healthoracle.presentation.forum.PostDetailScreen(
                 postId = postId,
                 onNavigateBack = { navController.popBackStack() }
@@ -223,13 +224,11 @@ fun HealthOracleNavGraph(
             val contactName = backStackEntry.arguments?.getString("contactName") ?: "Doctor"
             val chatViewModel: ChatViewModel = hiltViewModel()
             val messages by chatViewModel.messages.collectAsState()
-
-            // FIX: Collecting the newly added Contact Profile Url
             val contactProfileUrl by chatViewModel.contactProfileUrl.collectAsState()
 
             ChatScreen(
                 contactName = contactName,
-                contactProfileUrl = contactProfileUrl, // FIX: Passing it to the UI
+                contactProfileUrl = contactProfileUrl,
                 currentUserId = chatViewModel.currentUserId,
                 messages = messages,
                 onSendMessage = { text, imageUri -> chatViewModel.sendMessage(text, imageUri) },
@@ -254,6 +253,11 @@ fun HealthOracleNavGraph(
                     }
                 }
             )
+        }
+
+        // Walk Tracker Screen
+        composable(route = Screen.WalkTracker.route) {
+            WalkTrackerScreen()
         }
 
         // Patient Tasks Viewer Screen

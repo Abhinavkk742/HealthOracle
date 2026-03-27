@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -40,6 +41,7 @@ fun HomeScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToCalendar: () -> Unit,
+    onNavigateToWalkTracker: () -> Unit,                                          // ← ADD
     onNavigateToChat: (patientId: String, doctorId: String, contactName: String) -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -52,7 +54,6 @@ fun HomeScreen(
                 title = { },
                 actions = {
                     IconButton(onClick = onNavigateToProfile) {
-                        // FIX: Show Profile Picture if available
                         if (!profileState.profile.profilePictureUrl.isNullOrEmpty()) {
                             AsyncImage(
                                 model = profileState.profile.profilePictureUrl,
@@ -141,6 +142,24 @@ fun HomeScreen(
             )
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            // ─── FITNESS SECTION ──────────────────────────────────────
+            Text(
+                text = "Fitness",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            DashboardCard(
+                title = "Walk Tracker",
+                subtitle = "Track your walks with GPS",
+                icon = Icons.Default.DirectionsWalk,
+                onClick = onNavigateToWalkTracker                                 // ← ADD
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+            // ─────────────────────────────────────────────────────────
 
             Text(
                 text = "My Data",

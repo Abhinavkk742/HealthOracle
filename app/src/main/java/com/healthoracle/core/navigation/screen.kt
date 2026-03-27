@@ -30,16 +30,19 @@ sealed class Screen(val route: String) {
     }
     data object Calendar : Screen("calendar")
 
-    // NEW: Phase 5 - Tele-health Screens
+    // Phase 5: Tele-health Screens
     data object DoctorDashboard : Screen("doctor_dashboard")
     data object Chat : Screen("chat/{patientId}/{doctorId}/{contactName}") {
         fun createRoute(patientId: String, doctorId: String, contactName: String): String =
             "chat/$patientId/$doctorId/$contactName"
     }
 
-    // NEW: Patient Tasks Screen for Doctors
+    // Patient Tasks Screen for Doctors
     data object PatientTasks : Screen("patient_tasks/{patientId}/{patientName}") {
         fun createRoute(patientId: String, patientName: String): String =
             "patient_tasks/$patientId/$patientName"
     }
+
+    // Phase 6: Fitness
+    data object WalkTracker : Screen("walk_tracker")               // ← ADD THIS
 }
