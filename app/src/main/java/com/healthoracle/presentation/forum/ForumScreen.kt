@@ -229,13 +229,27 @@ fun RedditPostCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "User Avatar",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
-                )
+                // Profile Picture Check
+                if (!post.authorProfileUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = post.authorProfileUrl,
+                        contentDescription = "User Avatar",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "User Avatar",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.width(8.dp))
+
                 Text(
                     text = post.authorName,
                     style = MaterialTheme.typography.labelLarge,
@@ -243,13 +257,12 @@ fun RedditPostCard(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // NEW: Verified Tick for Doctors
                 if (post.authorRole == "doctor") {
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.Default.Verified,
                         contentDescription = "Verified Doctor",
-                        tint = Color(0xFF1DA1F2), // Blue tick color
+                        tint = Color(0xFF1DA1F2),
                         modifier = Modifier.size(16.dp)
                     )
                 }

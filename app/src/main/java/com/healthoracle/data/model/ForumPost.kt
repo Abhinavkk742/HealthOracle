@@ -5,8 +5,9 @@ import com.google.firebase.firestore.DocumentId
 data class ForumPost(
     @DocumentId val id: String = "",
     val authorName: String = "",
-    val authorId: String = "", // Tracks who made the post
-    val authorRole: String = "patient", // NEW: Tracks if the author is a doctor for the verified tick
+    val authorId: String = "",
+    val authorRole: String = "patient",
+    val authorProfileUrl: String? = null, // ADDED: Required for profile pictures
     val timestamp: Long = System.currentTimeMillis(),
     val timeAgo: String = "Just now",
     val title: String = "",
@@ -16,7 +17,6 @@ data class ForumPost(
     val commentCount: Int = 0,
     val viewCount: Int = 0,
 
-    // Security lists to prevent duplicate views and unlimited votes
     val viewedBy: List<String> = emptyList(),
     val upvotedBy: List<String> = emptyList(),
     val downvotedBy: List<String> = emptyList()

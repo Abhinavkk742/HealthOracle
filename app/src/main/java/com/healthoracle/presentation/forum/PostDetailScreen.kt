@@ -8,7 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll // Added missing import
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -54,18 +54,12 @@ fun PostDetailScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
 
-    // Report state
     var showReportDialog by remember { mutableStateOf(false) }
-
-    // Full screen image state
     var selectedImageUrl by remember { mutableStateOf<String?>(null) }
-
-    // Tracks who the user is replying to
     var replyingTo by remember { mutableStateOf<Comment?>(null) }
 
     val currentUserId = Firebase.auth.currentUser?.uid ?: ""
 
-    // Report Dialog
     if (showReportDialog) {
         AlertDialog(
             onDismissRequest = { showReportDialog = false },
@@ -105,7 +99,6 @@ fun PostDetailScreen(
                                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) }
                             )
                         } else {
-                            // If they are NOT the author, let them report it
                             DropdownMenuItem(
                                 text = { Text("Report Post", color = Color.Red) },
                                 onClick = {
@@ -122,8 +115,6 @@ fun PostDetailScreen(
         bottomBar = {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 16.dp) {
                 Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(8.dp)) {
-
-                    // Reply Indicator Banner
                     if (replyingTo != null) {
                         Row(
                             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 6.dp),
@@ -138,7 +129,6 @@ fun PostDetailScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    // Input Row
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
                             value = commentText,
@@ -154,7 +144,7 @@ fun PostDetailScreen(
                                 if (commentText.isNotBlank()) {
                                     viewModel.addComment(commentText, replyingTo?.id, replyingTo?.authorName)
                                     commentText = ""
-                                    replyingTo = null // Reset after sending
+                                    replyingTo = null
                                 }
                             },
                             enabled = commentText.isNotBlank() && !isCommenting,
@@ -169,7 +159,6 @@ fun PostDetailScreen(
         }
     ) { paddingValues ->
 
-        // Full Screen Edit Dialog for Images
         if (showEditDialog && post != null) {
             EditPostDialog(
                 initialTitle = post!!.title,
@@ -182,12 +171,11 @@ fun PostDetailScreen(
             )
         }
 
-        // Full Screen Zoomable Image Dialog
         if (selectedImageUrl != null) {
             Dialog(
                 onDismissRequest = { selectedImageUrl = null },
                 properties = DialogProperties(
-                    usePlatformDefaultWidth = false, // Takes up full screen
+                    usePlatformDefaultWidth = false,
                     dismissOnBackPress = true
                 )
             ) {
@@ -206,16 +194,11 @@ fun PostDetailScreen(
                             .fillMaxSize()
                             .pointerInput(Unit) {
                                 detectTransformGestures { _, pan, zoom, _ ->
-                                    // Limit zoom between 1x and 5x
                                     scale = (scale * zoom).coerceIn(1f, 5f)
-
-                                    // Calculate boundaries to prevent panning out of view when zoomed
                                     val maxX = (size.width * (scale - 1)) / 2
                                     val maxY = (size.height * (scale - 1)) / 2
-
                                     val newOffsetX = offset.x + pan.x * scale
                                     val newOffsetY = offset.y + pan.y * scale
-
                                     offset = Offset(
                                         newOffsetX.coerceIn(-maxX, maxX),
                                         newOffsetY.coerceIn(-maxY, maxY)
@@ -231,7 +214,6 @@ fun PostDetailScreen(
                         contentScale = ContentScale.Fit
                     )
 
-                    // Close Button
                     IconButton(
                         onClick = { selectedImageUrl = null },
                         modifier = Modifier
@@ -252,13 +234,33 @@ fun PostDetailScreen(
                 post?.let { currentPost ->
                     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
 
-                        // Main Post
                         item {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.AccountCircle, null, modifier = Modifier.size(32.dp))
+                                    // Profile Picture Check
+                                    if (!currentPost.authorProfileUrl.isNullOrEmpty()) {
+                                        AsyncImage(
+                                            model = currentPost.authorProfileUrl,
+                                            contentDescription = "User Avatar",
+                                            modifier = Modifier.size(32.dp).clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Icon(Icons.Default.AccountCircle, null, modifier = Modifier.size(32.dp))
+                                    }
+
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(currentPost.authorName, fontWeight = FontWeight.Bold)
+
+                                    if (currentPost.authorRole == "doctor") {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Verified,
+                                            contentDescription = "Verified Doctor",
+                                            tint = Color(0xFF1DA1F2),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(currentPost.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -278,7 +280,7 @@ fun PostDetailScreen(
                                                     .width(300.dp)
                                                     .height(200.dp)
                                                     .clip(RoundedCornerShape(12.dp))
-                                                    .clickable { selectedImageUrl = url }, // Make image clickable to zoom
+                                                    .clickable { selectedImageUrl = url },
                                                 contentScale = ContentScale.Crop
                                             )
                                         }
@@ -289,7 +291,6 @@ fun PostDetailScreen(
                             }
                         }
 
-                        // Threaded Comments Rendering
                         val topLevelComments = comments.filter { it.replyToCommentId == null }
 
                         items(topLevelComments) { parentComment ->
@@ -299,13 +300,12 @@ fun PostDetailScreen(
                                 onReplyClick = { replyingTo = parentComment }
                             )
 
-                            // Find and render replies underneath this specific parent
                             val replies = comments.filter { it.replyToCommentId == parentComment.id }
                             replies.forEach { reply ->
                                 CommentThreadItem(
                                     comment = reply,
                                     isReply = true,
-                                    onReplyClick = { replyingTo = parentComment } // Tapping reply on a reply threads it under the parent
+                                    onReplyClick = { replyingTo = parentComment }
                                 )
                             }
                             HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
@@ -329,11 +329,34 @@ fun CommentThreadItem(comment: Comment, isReply: Boolean, onReplyClick: () -> Un
                 bottom = 12.dp
             )
     ) {
-        Icon(Icons.Default.AccountCircle, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(if (isReply) 24.dp else 32.dp))
+        val avatarSize = if (isReply) 24.dp else 32.dp
+
+        if (!comment.authorProfileUrl.isNullOrEmpty()) {
+            AsyncImage(
+                model = comment.authorProfileUrl,
+                contentDescription = "User Avatar",
+                modifier = Modifier.size(avatarSize).clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Icon(Icons.Default.AccountCircle, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(avatarSize))
+        }
+
         Spacer(modifier = Modifier.width(8.dp))
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(comment.authorName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+
+                if (comment.authorRole == "doctor") {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.Verified,
+                        contentDescription = "Verified Doctor",
+                        tint = Color(0xFF1DA1F2),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+
                 if (comment.replyToAuthorName != null && isReply) {
                     Text(" replied to ${comment.replyToAuthorName}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -341,7 +364,6 @@ fun CommentThreadItem(comment: Comment, isReply: Boolean, onReplyClick: () -> Un
             Spacer(modifier = Modifier.height(4.dp))
             Text(comment.content, style = MaterialTheme.typography.bodyMedium)
 
-            // Inline Reply Button
             Text(
                 text = "Reply",
                 style = MaterialTheme.typography.labelMedium,
@@ -374,7 +396,7 @@ fun EditPostDialog(
 
     Dialog(
         onDismissRequest = { if (!isSaving) onDismiss() },
-        properties = DialogProperties(usePlatformDefaultWidth = false) // Makes it full screen
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Scaffold(
             topBar = {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Block
@@ -40,7 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.SubcomposeAsyncImage // NEW: Imported for loading states
+import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.healthoracle.data.model.ChatMessage
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -51,6 +53,7 @@ import kotlin.math.roundToInt
 @Composable
 fun ChatScreen(
     contactName: String,
+    contactProfileUrl: String? = null, // NEW: Added this parameter
     currentUserId: String,
     messages: List<ChatMessage>,
     onSendMessage: (String, Uri?) -> Unit,
@@ -62,7 +65,6 @@ fun ChatScreen(
     val replyingTo by viewModel.replyingToMessage.collectAsState()
 
     var selectedMessageForOptions by remember { mutableStateOf<ChatMessage?>(null) }
-
     var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
 
     val imagePicker = rememberLauncherForActivityResult(
@@ -75,7 +77,6 @@ fun ChatScreen(
         viewModel.markMessagesAsSeen()
     }
 
-    // Full Screen Image Dialog with Loader
     if (fullScreenImageUrl != null) {
         Dialog(
             onDismissRequest = { fullScreenImageUrl = null },
@@ -135,7 +136,23 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(contactName, fontWeight = FontWeight.Bold) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Top Bar Avatar
+                        if (!contactProfileUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = contactProfileUrl,
+                                contentDescription = "Contact Profile Picture",
+                                modifier = Modifier.size(36.dp).clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(36.dp))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(contactName, fontWeight = FontWeight.Bold)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -198,7 +215,7 @@ fun ChatScreen(
                                 modifier = Modifier
                                     .size(100.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant), // Placeholder background
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
                                 contentScale = ContentScale.Crop,
                                 loading = {
                                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -282,6 +299,7 @@ fun ChatScreen(
                         message = message,
                         allMessages = messages,
                         isFromCurrentUser = message.senderId == currentUserId,
+                        contactProfileUrl = contactProfileUrl, // Pass URL down
                         onLongPress = { selectedMessageForOptions = message },
                         onImageClick = { url -> fullScreenImageUrl = url }
                     )
@@ -372,171 +390,196 @@ fun MessageBubble(
     message: ChatMessage,
     allMessages: List<ChatMessage>,
     isFromCurrentUser: Boolean,
+    contactProfileUrl: String?,
     onLongPress: () -> Unit,
     onImageClick: (String) -> Unit
 ) {
     val formatter = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
     val timeString = formatter.format(Date(message.timestamp))
 
-    Column(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isFromCurrentUser) Alignment.End else Alignment.Start
+        horizontalArrangement = if (isFromCurrentUser) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom // Aligns the avatar to the bottom of the bubble
     ) {
-        Box(
-            modifier = Modifier
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isFromCurrentUser) 16.dp else 0.dp,
-                        bottomEnd = if (isFromCurrentUser) 0.dp else 16.dp
-                    )
+        // Show contact avatar for incoming messages
+        if (!isFromCurrentUser) {
+            if (!contactProfileUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = contactProfileUrl,
+                    contentDescription = "Contact Profile Picture",
+                    modifier = Modifier.size(28.dp).clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
-                .background(
-                    if (isFromCurrentUser) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                Icon(
+                    Icons.Default.AccountCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                .combinedClickable(
-                    onClick = { },
-                    onLongClick = {
-                        if (isFromCurrentUser && !message.isDeleted) {
-                            onLongPress()
-                        }
-                    }
-                )
-                .padding(4.dp)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
+        Column(
+            horizontalAlignment = if (isFromCurrentUser) Alignment.End else Alignment.Start,
+            modifier = Modifier.weight(1f, fill = false) // Prevents bubble from stretching full width when avatar is present
         ) {
-            Column(modifier = Modifier.padding(8.dp)) {
-
-                if (message.isDeleted) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Block,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                            else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+            Box(
+                modifier = Modifier
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 16.dp,
+                            topEnd = 16.dp,
+                            bottomStart = if (isFromCurrentUser) 16.dp else 0.dp,
+                            bottomEnd = if (isFromCurrentUser) 0.dp else 16.dp
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "This message was deleted",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontStyle = FontStyle.Italic,
-                            color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                            else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                        )
-                    }
-                } else {
-                    val showReplyPreview = message.replyToMessageId != null || !message.replyToMessageText.isNullOrBlank()
-
-                    if (showReplyPreview) {
-                        val liveParent = message.replyToMessageId?.let { id -> allMessages.find { it.messageId == id } }
-                        val isParentDeleted = liveParent?.isDeleted == true || message.replyToMessageText == "Deleted Message"
-
-                        val replyPreviewText = when {
-                            isParentDeleted -> "Deleted Message"
-                            liveParent != null && liveParent.messageText.isNotBlank() -> liveParent.messageText
-                            message.replyToMessageText?.isNotBlank() == true -> message.replyToMessageText
-                            else -> "Image"
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.8f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Black.copy(alpha = 0.1f))
-                                .padding(8.dp)
-                                .padding(bottom = 4.dp)
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Replied Message",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                                    else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                                )
-                                Text(
-                                    text = replyPreviewText!!,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontStyle = if (isParentDeleted) FontStyle.Italic else FontStyle.Normal,
-                                    color = if (isParentDeleted) {
-                                        if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
-                                        else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
-                                    } else {
-                                        if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary
-                                        else MaterialTheme.colorScheme.onSecondaryContainer
-                                    },
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                    )
+                    .background(
+                        if (isFromCurrentUser) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.secondaryContainer
+                    )
+                    .combinedClickable(
+                        onClick = { },
+                        onLongClick = {
+                            if (isFromCurrentUser && !message.isDeleted) {
+                                onLongPress()
                             }
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
-                    }
+                    )
+                    .padding(4.dp)
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
 
-                    if (message.imageUrl != null) {
-                        // SubcomposeAsyncImage adds the loading spinner while fetching
-                        SubcomposeAsyncImage(
-                            model = message.imageUrl,
-                            contentDescription = "Shared Image",
-                            modifier = Modifier
-                                .fillMaxWidth(0.7f)
-                                .heightIn(min = 150.dp, max = 250.dp) // Minimum height prevents layout jumping
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.Black.copy(alpha = 0.1f)) // Placeholder tint
-                                .clickable { onImageClick(message.imageUrl) },
-                            contentScale = ContentScale.Crop,
-                            loading = {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(
-                                        color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary
-                                        else MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.dp
+                    if (message.isDeleted) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Block,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "This message was deleted",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontStyle = FontStyle.Italic,
+                                color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                    } else {
+                        val showReplyPreview = message.replyToMessageId != null || !message.replyToMessageText.isNullOrBlank()
+
+                        if (showReplyPreview) {
+                            val liveParent = message.replyToMessageId?.let { id -> allMessages.find { it.messageId == id } }
+                            val isParentDeleted = liveParent?.isDeleted == true || message.replyToMessageText == "Deleted Message"
+
+                            val replyPreviewText = when {
+                                isParentDeleted -> "Deleted Message"
+                                liveParent != null && liveParent.messageText.isNotBlank() -> liveParent.messageText
+                                message.replyToMessageText?.isNotBlank() == true -> message.replyToMessageText
+                                else -> "Image"
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Black.copy(alpha = 0.1f))
+                                    .padding(8.dp)
+                                    .padding(bottom = 4.dp)
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Replied Message",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                        else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    )
+                                    Text(
+                                        text = replyPreviewText!!,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontStyle = if (isParentDeleted) FontStyle.Italic else FontStyle.Normal,
+                                        color = if (isParentDeleted) {
+                                            if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
+                                            else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                                        } else {
+                                            if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary
+                                            else MaterialTheme.colorScheme.onSecondaryContainer
+                                        },
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                    }
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
 
-                    if (message.messageText.isNotBlank()) {
-                        Text(
-                            text = message.messageText,
-                            color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                        if (message.imageUrl != null) {
+                            SubcomposeAsyncImage(
+                                model = message.imageUrl,
+                                contentDescription = "Shared Image",
+                                modifier = Modifier
+                                    .fillMaxWidth(0.7f)
+                                    .heightIn(min = 150.dp, max = 250.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.Black.copy(alpha = 0.1f))
+                                    .clickable { onImageClick(message.imageUrl) },
+                                contentScale = ContentScale.Crop,
+                                loading = {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(
+                                            color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary
+                                            else MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+
+                        if (message.messageText.isNotBlank()) {
+                            Text(
+                                text = message.messageText,
+                                color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = timeString,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            if (isFromCurrentUser) {
-                Spacer(modifier = Modifier.width(6.dp))
-
-                val statusText = when (message.status) {
-                    "seen" -> "Seen"
-                    "delivered" -> "Delivered"
-                    else -> "Sent"
-                }
-
-                val statusColor = if (message.status == "seen") Color(0xFF34B7F1) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "• $statusText",
+                    text = timeString,
                     style = MaterialTheme.typography.labelSmall,
-                    color = statusColor,
-                    fontWeight = if (message.status == "seen") FontWeight.Bold else FontWeight.Normal
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (isFromCurrentUser) {
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    val statusText = when (message.status) {
+                        "seen" -> "Seen"
+                        "delivered" -> "Delivered"
+                        else -> "Sent"
+                    }
+
+                    val statusColor = if (message.status == "seen") Color(0xFF34B7F1) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+
+                    Text(
+                        text = "• $statusText",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusColor,
+                        fontWeight = if (message.status == "seen") FontWeight.Bold else FontWeight.Normal
+                    )
+                }
             }
         }
     }
