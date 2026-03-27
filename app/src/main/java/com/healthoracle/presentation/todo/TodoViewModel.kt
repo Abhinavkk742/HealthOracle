@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.healthoracle.data.local.dao.AppointmentDao
 import com.healthoracle.data.local.dao.TodoDao
 import com.healthoracle.data.local.entity.TodoEntity
+import com.healthoracle.widget.TodoWidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,27 +31,34 @@ class TodoViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            // Only delete STALE days — never delete today's todos (preserves isDone state)
             todoDao.deleteStaleTodays(today)
 
-            val seeds = appointmentDao.getAppointmentsList()
-                .filter { it.date == today }
-                .map { appt ->
-                    TodoEntity(
-                        appointmentId = appt.id,
-                        title = appt.title,
-                        time = appt.time,
-                        date = appt.date,
-                        category = appt.category,
-                        isDone = false
-                    )
-                }
-            if (seeds.isNotEmpty()) todoDao.insertTodos(seeds)
+            // Only seed if today has NO todos yet (first open of the day)
+            val existing = todoDao.getTodosForDateSync(today)
+            if (existing.isEmpty()) {
+                val seeds = appointmentDao.getAppointmentsList()
+                    .filter { it.date == today }
+                    .map { appt ->
+                        TodoEntity(
+                            appointmentId = appt.id,
+                            title = appt.title,
+                            time = appt.time,
+                            date = appt.date,
+                            category = appt.category,
+                            isDone = false
+                        )
+                    }
+                if (seeds.isNotEmpty()) todoDao.insertTodos(seeds)
+            }
         }
     }
 
     fun toggleDone(todo: TodoEntity) {
         viewModelScope.launch {
             todoDao.setDone(todo.id, !todo.isDone)
+            // Keep widget in sync when toggled from the app
+            TodoWidgetUpdater.enqueue(context)
         }
     }
 
