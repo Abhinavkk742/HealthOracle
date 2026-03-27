@@ -26,4 +26,7 @@ interface TodoDao {
     // Called on app startup: removes todos for any date that is not today
     @Query("DELETE FROM todos WHERE date != :today")
     suspend fun deleteStaleTodays(today: String)
+    // Add this to TodoDao.kt
+    @Query("SELECT * FROM todos WHERE date = :date ORDER BY time ASC")
+    suspend fun getTodosForDateSync(date: String): List<TodoEntity>
 }

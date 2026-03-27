@@ -81,7 +81,8 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons)
     debugImplementation(libs.compose.ui.tooling)
-
+    implementation("androidx.glance:glance-appwidget:1.1.0")
+    implementation("androidx.glance:glance-material3:1.1.0")
     //Cloudinary photo for posts
     implementation("com.cloudinary:cloudinary-android:2.5.0")
 
