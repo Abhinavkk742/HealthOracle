@@ -36,7 +36,6 @@ class PrescriptionViewModel @Inject constructor(
                     _isLoading.value = false
                 }
             } catch (e: Exception) {
-                // ✅ FIX: Safely catch any unexpected errors so the app never closes
                 Log.e("PrescriptionVM", "Error loading prescriptions", e)
                 _isLoading.value = false
             }
@@ -59,6 +58,13 @@ class PrescriptionViewModel @Inject constructor(
             } else {
                 _uploadStatus.value = "Error uploading image"
             }
+        }
+    }
+
+    // ✅ NEW: Delete function
+    fun deletePrescription(prescriptionId: String) {
+        viewModelScope.launch {
+            repository.deletePrescription(prescriptionId)
         }
     }
 

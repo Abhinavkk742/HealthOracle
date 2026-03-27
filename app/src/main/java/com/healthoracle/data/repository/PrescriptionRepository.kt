@@ -27,7 +27,6 @@ class PrescriptionRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     @ApplicationContext private val context: Context
 ) {
-    // ✅ This already uploads the photo straight to Cloudinary
     suspend fun uploadPrescriptionImage(imageUri: Uri): String? {
         return withContext(Dispatchers.IO) {
             try {
@@ -89,21 +88,30 @@ class PrescriptionRepository @Inject constructor(
         }
     }
 
+    // ✅ NEW: Delete function
+    suspend fun deletePrescription(prescriptionId: String): Boolean {
+        return try {
+            firestore.collection("prescriptions").document(prescriptionId).delete().await()
+            true
+        } catch (e: Exception) {
+            Log.e("PrescriptionRepo", "Failed to delete from Firestore", e)
+            false
+        }
+    }
+
     fun getPatientPrescriptions(patientId: String): Flow<List<Prescription>> = callbackFlow {
         val listener = firestore.collection("prescriptions")
             .whereEqualTo("patientId", patientId)
-            // ✅ FIX: Removed the Firebase .orderBy() that was causing the crash
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e("PrescriptionRepo", "Listen failed", error)
-                    trySend(emptyList()) // Send an empty list instead of crashing
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
                     val prescriptions = snapshot.documents.mapNotNull { doc ->
                         doc.toObject(Prescription::class.java)
                     }
-                    // ✅ FIX: Sort the photos by time locally on the device instead
                     val sortedList = prescriptions.sortedByDescending { it.timestamp }
                     trySend(sortedList)
                 }
