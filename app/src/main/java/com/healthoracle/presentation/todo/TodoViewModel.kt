@@ -31,42 +31,17 @@ class TodoViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            // Only delete STALE days — never delete today's todos (preserves isDone state)
+            // 1. Remove tasks from previous days to keep the list clean
             todoDao.deleteStaleTodays(today)
 
-            // Only seed if today has NO todos yet (first open of the day)
-            val existing = todoDao.getTodosForDateSync(today)
-            if (existing.isEmpty()) {
-                val seeds = appointmentDao.getAppointmentsList()
-                    .filter { it.date == today }
-                    .map { appt ->
-                        TodoEntity(
-                            appointmentId = appt.id,
-                            title = appt.title,
-                            time = appt.time,
-                            date = appt.date,
-                            category = appt.category,
-                            isDone = false
-                        )
-                    }
-                if (seeds.isNotEmpty()) todoDao.insertTodos(seeds)
-            }
-        }
-    }
+            // 2. Sync today's tasks with appointments without duplicating
+            val appointments = appointmentDao.getAppointmentsList().filter { it.date == today }
+            val currentTodos = todoDao.getTodosForDateSync(today)
+            val currentApptIds = currentTodos.map { it.appointmentId }.toSet()
 
-    fun toggleDone(todo: TodoEntity) {
-        viewModelScope.launch {
-            todoDao.setDone(todo.id, !todo.isDone)
-            // Keep widget in sync when toggled from the app
-            TodoWidgetUpdater.enqueue(context)
-        }
-    }
-
-    fun refreshTodos() {
-        viewModelScope.launch {
-            todoDao.deleteTodosForDate(today)
-            val seeds = appointmentDao.getAppointmentsList()
-                .filter { it.date == today }
+            // Only add appointments that don't already have a corresponding task
+            val newTasks = appointments
+                .filter { it.id !in currentApptIds }
                 .map { appt ->
                     TodoEntity(
                         appointmentId = appt.id,
@@ -77,7 +52,44 @@ class TodoViewModel @Inject constructor(
                         isDone = false
                     )
                 }
-            if (seeds.isNotEmpty()) todoDao.insertTodos(seeds)
+
+            if (newTasks.isNotEmpty()) {
+                todoDao.insertTodos(newTasks)
+            }
+        }
+    }
+
+    fun toggleDone(todo: TodoEntity) {
+        viewModelScope.launch {
+            todoDao.setDone(todo.id, !todo.isDone)
+            // Refresh widgets so the change is reflected immediately on the home screen
+            TodoWidgetUpdater.enqueue(context)
+        }
+    }
+
+    fun refreshTodos() {
+        viewModelScope.launch {
+            // Re-sync with appointments while preserving completion status of existing tasks
+            val appointments = appointmentDao.getAppointmentsList().filter { it.date == today }
+            val currentTodos = todoDao.getTodosForDateSync(today)
+            val currentApptIds = currentTodos.map { it.appointmentId }.toSet()
+
+            val tasksToAdd = appointments
+                .filter { it.id !in currentApptIds }
+                .map { appt ->
+                    TodoEntity(
+                        appointmentId = appt.id,
+                        title = appt.title,
+                        time = appt.time,
+                        date = appt.date,
+                        category = appt.category,
+                        isDone = false
+                    )
+                }
+
+            if (tasksToAdd.isNotEmpty()) {
+                todoDao.insertTodos(tasksToAdd)
+            }
         }
     }
 }
