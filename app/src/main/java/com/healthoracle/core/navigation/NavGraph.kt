@@ -140,9 +140,7 @@ fun HealthOracleNavGraph(
             SkinDiseaseScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAiSuggestion = { conditionName ->
-                    navController.navigate(
-                        Screen.AiSuggestion.createRoute(conditionName, "skin")
-                    )
+                    navController.navigate(Screen.AiSuggestion.createRoute(conditionName, "skin"))
                 }
             )
         }
@@ -151,9 +149,7 @@ fun HealthOracleNavGraph(
             DiabetesScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAiSuggestion = { conditionName ->
-                    navController.navigate(
-                        Screen.AiSuggestion.createRoute(conditionName, "diabetes")
-                    )
+                    navController.navigate(Screen.AiSuggestion.createRoute(conditionName, "diabetes"))
                 }
             )
         }
@@ -212,7 +208,6 @@ fun HealthOracleNavGraph(
             )
         }
 
-        // Tele-health Chat Screen
         composable(
             route = Screen.Chat.route,
             arguments = listOf(
@@ -225,7 +220,6 @@ fun HealthOracleNavGraph(
             val chatViewModel: ChatViewModel = hiltViewModel()
             val messages by chatViewModel.messages.collectAsState()
             val contactProfileUrl by chatViewModel.contactProfileUrl.collectAsState()
-
             ChatScreen(
                 contactName = contactName,
                 contactProfileUrl = contactProfileUrl,
@@ -236,7 +230,6 @@ fun HealthOracleNavGraph(
             )
         }
 
-        // Doctor Dashboard Screen
         composable(route = Screen.DoctorDashboard.route) {
             com.healthoracle.presentation.doctor.DoctorDashboardScreen(
                 onNavigateToChat = { patientId, doctorId, patientName ->
@@ -255,12 +248,10 @@ fun HealthOracleNavGraph(
             )
         }
 
-        // Walk Tracker Screen
         composable(route = Screen.WalkTracker.route) {
             WalkTrackerScreen()
         }
 
-        // Patient Tasks Viewer Screen
         composable(
             route = Screen.PatientTasks.route,
             arguments = listOf(
@@ -270,7 +261,6 @@ fun HealthOracleNavGraph(
         ) { backStackEntry ->
             val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
             val patientName = backStackEntry.arguments?.getString("patientName") ?: "Patient"
-
             com.healthoracle.presentation.doctor.PatientTasksScreen(
                 patientId = patientId,
                 patientName = patientName,

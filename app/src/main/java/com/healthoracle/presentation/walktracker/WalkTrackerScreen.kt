@@ -1,12 +1,14 @@
 package com.healthoracle.presentation.walktracker
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.ArrowForwardIos
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,7 +49,10 @@ fun WalkTrackerScreen(
 
         // Map (top half)
         OsmMapView(
-            modifier = Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp)
+                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
             routePoints = uiState.routePoints,
             currentLat = uiState.lastLocation?.latitude,
             currentLng = uiState.lastLocation?.longitude
@@ -67,7 +73,9 @@ fun WalkTrackerScreen(
 
         // Control Buttons
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (!uiState.isTracking) {
@@ -118,7 +126,9 @@ fun WalkTrackerScreen(
         if (uiState.sessionSaved) {
             Text(
                 "✅ Walk saved!",
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(4.dp),
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(4.dp),
                 color = Color(0xFF437a22),
                 fontWeight = FontWeight.SemiBold
             )
@@ -133,13 +143,26 @@ fun WalkTrackerScreen(
         )
 
         if (walkHistory.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text("No walks yet. Start your first walk!", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "No walks yet. Start your first walk!",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 items(walkHistory) { session ->
-                    WalkHistoryCard(session = session, viewModel = viewModel)
+                    WalkHistoryCard(
+                        session = session,
+                        viewModel = viewModel
+                    )
                 }
             }
         }
@@ -155,24 +178,45 @@ fun StatCard(label: String, value: String) {
 }
 
 @Composable
-fun WalkHistoryCard(session: WalkSession, viewModel: WalkTrackerViewModel) {
+fun WalkHistoryCard(
+    session: WalkSession,
+    viewModel: WalkTrackerViewModel,
+    onViewRoute: () -> Unit = {}
+) {
     val dateFormat = SimpleDateFormat("MMM d, yyyy  hh:mm a", Locale.getDefault())
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onViewRoute() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.DirectionsWalk, contentDescription = null, tint = Color(0xFF01696f), modifier = Modifier.size(32.dp))
+            Icon(
+                Icons.Default.DirectionsWalk,
+                contentDescription = null,
+                tint = Color(0xFF01696f),
+                modifier = Modifier.size(32.dp)
+            )
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(dateFormat.format(Date(session.startTime)), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text(
+                    dateFormat.format(Date(session.startTime)),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
                 Text(
                     "${viewModel.formatDistance(session.distanceMeters)}  •  ${viewModel.formatDuration(session.durationSeconds)}  •  ${session.steps} steps",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Icon(
+                imageVector = Icons.Rounded.ArrowForwardIos,
+                contentDescription = "View route",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }
@@ -180,17 +224,31 @@ fun WalkHistoryCard(session: WalkSession, viewModel: WalkTrackerViewModel) {
 @Composable
 fun PermissionRequestScreen(onRequest: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color(0xFF01696f))
+        Icon(
+            Icons.Default.LocationOn,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = Color(0xFF01696f)
+        )
         Spacer(Modifier.height(16.dp))
         Text("Location Permission Required", fontWeight = FontWeight.Bold, fontSize = 20.sp)
         Spacer(Modifier.height(8.dp))
-        Text("HealthOracle needs your location to track your walks on the map.", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(
+            "HealthOracle needs your location to track your walks on the map.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onRequest, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF01696f))) {
+        Button(
+            onClick = onRequest,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF01696f))
+        ) {
             Text("Grant Location Permission")
         }
     }

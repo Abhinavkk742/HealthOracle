@@ -42,6 +42,9 @@ sealed class Screen(val route: String) {
         fun createRoute(patientId: String, patientName: String): String =
             "patient_tasks/$patientId/$patientName"
     }
+    data object WalkHistoryDetail : Screen("walk_history_detail/{sessionId}") {
+        fun createRoute(sessionId: Long): String = "walk_history_detail/$sessionId"
+    }
 
     // Phase 6: Fitness
     data object WalkTracker : Screen("walk_tracker")               // ← ADD THIS
