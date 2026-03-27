@@ -57,7 +57,6 @@ fun HealthOracleNavGraph(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-                // FIXED: Added the routing for the Doctor Dashboard
                 onNavigateToDoctorDashboard = {
                     navController.navigate(Screen.DoctorDashboard.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
@@ -74,7 +73,6 @@ fun HealthOracleNavGraph(
                         popUpTo(Screen.SignUp.route) { inclusive = true }
                     }
                 },
-                // NEW: Handle doctor signup routing
                 onNavigateToDoctorDashboard = {
                     navController.navigate(Screen.DoctorDashboard.route) {
                         popUpTo(Screen.SignUp.route) { inclusive = true }
@@ -92,7 +90,6 @@ fun HealthOracleNavGraph(
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onNavigateToHistory = { navController.navigate(Screen.History.route) },
                 onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
-                // NEW: Triggers the navigation
                 onNavigateToChat = { patientId, doctorId, contactName ->
                     navController.navigate(Screen.Chat.createRoute(patientId, doctorId, contactName))
                 }
@@ -104,7 +101,6 @@ fun HealthOracleNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToMyPosts = { navController.navigate("my_posts") },
-                // NEW: Triggers the navigation
                 onNavigateToChat = { patientId, doctorId, contactName ->
                     navController.navigate(Screen.Chat.createRoute(patientId, doctorId, contactName))
                 },
@@ -121,7 +117,7 @@ fun HealthOracleNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true } // Clear the entire app backstack!
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )
@@ -226,8 +222,6 @@ fun HealthOracleNavGraph(
             )
         ) { backStackEntry ->
             val contactName = backStackEntry.arguments?.getString("contactName") ?: "Doctor"
-
-            // Initialize the ViewModel (Hilt handles injecting the repository and SavedStateHandle)
             val chatViewModel: ChatViewModel = hiltViewModel()
             val messages by chatViewModel.messages.collectAsState()
 
@@ -246,11 +240,35 @@ fun HealthOracleNavGraph(
                 onNavigateToChat = { patientId, doctorId, patientName ->
                     navController.navigate(Screen.Chat.createRoute(patientId, doctorId, patientName))
                 },
+                onNavigateToForum = { navController.navigate(Screen.Forum.route) },
+                onNavigateToPatientTasks = { patientId, patientName ->
+                    navController.navigate(Screen.PatientTasks.createRoute(patientId, patientName))
+                },
+                // NEW: Route the doctor to the Profile Screen
+                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true } // Clear backstack and go to login
+                        popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        // Patient Tasks Viewer Screen
+        composable(
+            route = Screen.PatientTasks.route,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("patientName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
+            val patientName = backStackEntry.arguments?.getString("patientName") ?: "Patient"
+
+            com.healthoracle.presentation.doctor.PatientTasksScreen(
+                patientId = patientId,
+                patientName = patientName,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

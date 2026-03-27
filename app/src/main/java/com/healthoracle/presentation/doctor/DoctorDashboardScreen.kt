@@ -9,8 +9,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -30,6 +31,9 @@ import com.healthoracle.data.model.UserAccount
 @Composable
 fun DoctorDashboardScreen(
     onNavigateToChat: (patientId: String, doctorId: String, patientName: String) -> Unit,
+    onNavigateToForum: () -> Unit,
+    onNavigateToPatientTasks: (patientId: String, patientName: String) -> Unit,
+    onNavigateToProfile: () -> Unit, // NEW: Navigation to Profile
     onLogout: () -> Unit,
     viewModel: DoctorDashboardViewModel = hiltViewModel()
 ) {
@@ -42,6 +46,15 @@ fun DoctorDashboardScreen(
             TopAppBar(
                 title = { Text("My Patients", fontWeight = FontWeight.Bold) },
                 actions = {
+                    // Access Community Forum
+                    IconButton(onClick = onNavigateToForum) {
+                        Icon(Icons.Default.Forum, contentDescription = "Community Forum")
+                    }
+                    // NEW: Access Profile Screen
+                    IconButton(onClick = onNavigateToProfile) {
+                        Icon(Icons.Default.AccountCircle, contentDescription = "My Profile")
+                    }
+                    // Logout
                     IconButton(onClick = {
                         Firebase.auth.signOut()
                         onLogout()
@@ -80,8 +93,11 @@ fun DoctorDashboardScreen(
                     items(patients) { patient ->
                         PatientCardItem(
                             patient = patient,
-                            onClick = {
+                            onChatClick = {
                                 onNavigateToChat(patient.uid, doctorId, patient.name)
+                            },
+                            onTasksClick = {
+                                onNavigateToPatientTasks(patient.uid, patient.name)
                             }
                         )
                     }
@@ -94,12 +110,13 @@ fun DoctorDashboardScreen(
 @Composable
 fun PatientCardItem(
     patient: UserAccount,
-    onClick: () -> Unit
+    onChatClick: () -> Unit,
+    onTasksClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable { onChatClick() },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -143,18 +160,35 @@ fun PatientCardItem(
                 )
             }
 
-            // Chat Icon Action
-            IconButton(
-                onClick = onClick,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-            ) {
-                Icon(
-                    Icons.Default.Chat,
-                    contentDescription = "Message Patient",
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            // Action Buttons
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Task Icon Action
+                IconButton(
+                    onClick = onTasksClick,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))
+                ) {
+                    Icon(
+                        Icons.Default.Assignment,
+                        contentDescription = "View Tasks",
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                }
+
+                // Chat Icon Action
+                IconButton(
+                    onClick = onChatClick,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                ) {
+                    Icon(
+                        Icons.Default.Chat,
+                        contentDescription = "Message Patient",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }

@@ -71,17 +71,15 @@ fun ForumScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    ) { paddingValues: PaddingValues -> // FIX: Explicitly typed to stop the compiler bug
+    ) { paddingValues: PaddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                // FIX: Deconstructed the padding to completely bypass the Kotlin type mismatch error
                 .padding(
                     top = paddingValues.calculateTopPadding(),
                     bottom = paddingValues.calculateBottomPadding()
                 )
         ) {
-            // NEW: Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.setSearchQuery(it) },
@@ -108,7 +106,6 @@ fun ForumScreen(
                 )
             )
 
-            // Sort Chips (Now dynamically hooked up!)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -245,6 +242,18 @@ fun RedditPostCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+
+                // NEW: Verified Tick for Doctors
+                if (post.authorRole == "doctor") {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.Verified,
+                        contentDescription = "Verified Doctor",
+                        tint = Color(0xFF1DA1F2), // Blue tick color
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
                 Text(
                     text = " • ${post.timeAgo}",
                     style = MaterialTheme.typography.labelMedium,

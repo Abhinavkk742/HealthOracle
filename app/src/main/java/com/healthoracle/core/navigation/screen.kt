@@ -36,4 +36,10 @@ sealed class Screen(val route: String) {
         fun createRoute(patientId: String, doctorId: String, contactName: String): String =
             "chat/$patientId/$doctorId/$contactName"
     }
+
+    // NEW: Patient Tasks Screen for Doctors
+    data object PatientTasks : Screen("patient_tasks/{patientId}/{patientName}") {
+        fun createRoute(patientId: String, patientName: String): String =
+            "patient_tasks/$patientId/$patientName"
+    }
 }
