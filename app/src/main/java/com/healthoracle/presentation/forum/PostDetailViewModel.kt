@@ -33,7 +33,7 @@ class PostDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val cloudinaryUploadPreset = "krfgajle" // <-- PASTE YOUR PRESET HERE
+    private val cloudinaryUploadPreset = "krfgajle"
 
     private val postId: String = checkNotNull(savedStateHandle["postId"])
 
@@ -104,7 +104,6 @@ class PostDetailViewModel @Inject constructor(
             try {
                 val finalUrls = retainedUrls.toMutableList()
 
-                // Upload any newly selected images to Cloudinary
                 for (uri in newUris) {
                     val downloadUrl = uploadToCloudinary(uri)
                     finalUrls.add(downloadUrl)
@@ -151,26 +150,26 @@ class PostDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _isCommenting.value = true
             try {
-                // Fetching user details including profile URL and Role
                 val userDoc = firestore.collection("users").document(authorId).get().await()
                 val profileName = userDoc.getString("name")
                 val profileUrl = userDoc.getString("profilePictureUrl")
                 val role = userDoc.getString("role") ?: "patient"
 
+                // UPDATED: Removed the "u/" from all of these
                 val authorName = if (!profileName.isNullOrBlank()) {
-                    "u/$profileName"
+                    profileName
                 } else if (!currentUser.displayName.isNullOrBlank()) {
-                    "u/${currentUser.displayName}"
+                    currentUser.displayName!!
                 } else {
-                    "u/Anonymous"
+                    "Anonymous"
                 }
 
                 val newComment = Comment(
                     postId = postId,
                     authorId = authorId,
                     authorName = authorName,
-                    authorRole = role,               // FIX: Attaches Verified Tick if doctor
-                    authorProfileUrl = profileUrl,   // FIX: Attaches Profile Picture
+                    authorRole = role,
+                    authorProfileUrl = profileUrl,
                     content = content,
                     timestamp = System.currentTimeMillis(),
                     replyToCommentId = replyToCommentId,

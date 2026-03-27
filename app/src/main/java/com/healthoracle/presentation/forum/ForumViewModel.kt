@@ -203,11 +203,11 @@ class ForumViewModel @Inject constructor(
                 val profileName = userDoc.getString("name")
 
                 val authorName = if (!profileName.isNullOrBlank()) {
-                    "u/$profileName"
+                    "$profileName"
                 } else if (!currentUser.displayName.isNullOrBlank()) {
-                    "u/${currentUser.displayName}"
+                    "${currentUser.displayName}"
                 } else {
-                    "u/Anonymous"
+                    "Anonymous"
                 }
 
                 val uploadedUrls = mutableListOf<String>()

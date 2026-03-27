@@ -73,14 +73,11 @@ class ProfileViewModel @Inject constructor(
             val userId = auth.currentUser?.uid ?: return@launch
 
             try {
-                // FIXED: Create a unique ID using the timestamp to bypass Cloudinary overwrite blocks and Coil cache
-                val uniqueImageId = "${userId}_${System.currentTimeMillis()}"
-
                 val downloadUrl = suspendCancellableCoroutine { continuation ->
                     MediaManager.get().upload(uri)
-                        .unsigned("krfgajle") // Replace with your actual preset
+                        .unsigned("krfgajle") // Using your preset here
                         .option("folder", "profile_pictures")
-                        .option("public_id", uniqueImageId)
+                        .option("public_id", userId)
                         .callback(object : UploadCallback {
                             override fun onStart(requestId: String?) {}
 
@@ -105,7 +102,6 @@ class ProfileViewModel @Inject constructor(
                         .dispatch()
                 }
 
-                // Update Firestore with the new Cloudinary URL
                 firestore.collection("users").document(userId)
                     .set(mapOf("profilePictureUrl" to downloadUrl), SetOptions.merge())
                     .await()
@@ -116,7 +112,6 @@ class ProfileViewModel @Inject constructor(
                     profile = updatedProfile
                 )
 
-                // Sync the new URL to forum posts and comments
                 syncProfileDataToForum(updatedProfile.name, downloadUrl, updatedProfile.role)
 
             } catch (e: Exception) {
@@ -193,9 +188,10 @@ class ProfileViewModel @Inject constructor(
                 if (!userPosts.isEmpty) {
                     firestore.runBatch { batch ->
                         userPosts.documents.forEach { doc ->
+                            // UPDATED: Removed "u/" from newName
                             batch.update(
                                 doc.reference,
-                                "authorName", "u/$newName",
+                                "authorName", newName,
                                 "authorProfileUrl", newPicUrl,
                                 "authorRole", role
                             )
@@ -207,9 +203,10 @@ class ProfileViewModel @Inject constructor(
                 if (!userComments.isEmpty) {
                     firestore.runBatch { batch ->
                         userComments.documents.forEach { doc ->
+                            // UPDATED: Removed "u/" from newName
                             batch.update(
                                 doc.reference,
-                                "authorName", "u/$newName",
+                                "authorName", newName,
                                 "authorProfileUrl", newPicUrl,
                                 "authorRole", role
                             )
