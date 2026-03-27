@@ -8,6 +8,7 @@ data class UserProfile(
     val gender: String = "Male",
     val heightCm: Float = 0f,
     val weightKg: Float = 0f,
-    val role: String = "patient", // NEW: Ensure new users default to patient
-    val assignedDoctorId: String? = null // NEW: Safe spot to hold doctor assignments
+    val role: String = "patient", // "doctor" gets the verified tick
+    val assignedDoctorId: String? = null,
+    val profilePictureUrl: String? = null // NEW: Profile picture URL
 )

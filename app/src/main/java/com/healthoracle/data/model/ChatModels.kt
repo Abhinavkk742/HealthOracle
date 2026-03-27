@@ -9,7 +9,7 @@ data class ChatMessage(
 
     val status: String = "sent", // Can be "sent", "delivered", "seen"
     val imageUrl: String? = null,
-    val replyToMessageId: String? = null, // NEW: Links to the exact message
+    val replyToMessageId: String? = null,
     val replyToMessageText: String? = null,
     val replyToMessageSender: String? = null,
 
@@ -29,5 +29,6 @@ data class UserAccount(
     val name: String = "",
     val email: String = "",
     val role: String = "patient",
-    val assignedDoctorId: String? = null
+    val assignedDoctorId: String? = null,
+    val profilePictureUrl: String? = null // NEW: For chat profile pics
 )

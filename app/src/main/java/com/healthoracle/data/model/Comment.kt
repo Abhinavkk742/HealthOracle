@@ -5,8 +5,10 @@ import com.google.firebase.firestore.DocumentId
 data class Comment(
     @DocumentId val id: String = "",
     val postId: String = "",
-    val authorId: String = "", // NEW: Ties the comment to the user's specific account
+    val authorId: String = "",
     val authorName: String = "",
+    val authorRole: String = "patient", // NEW: For doctor tick
+    val authorProfileUrl: String? = null, // NEW: For profile pic
     val content: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     val replyToCommentId: String? = null,

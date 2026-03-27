@@ -1,9 +1,15 @@
 package com.healthoracle.presentation.profile
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -16,15 +22,20 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -54,6 +65,12 @@ fun ProfileScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
     val dobInteractionSource = remember { MutableInteractionSource() }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.uploadProfilePicture(it) }
+    }
 
     if (dobInteractionSource.collectIsPressedAsState().value) {
         showDatePicker = true
@@ -120,12 +137,59 @@ fun ProfileScreen(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp),
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                // Profile Picture Section
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { imagePickerLauncher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (uiState.isUploadingImage) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    } else if (!uiState.profile.profilePictureUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = uiState.profile.profilePictureUrl,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(60.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Tap to change picture",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Name and Meta Tick Header
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = name.ifEmpty { "Your Name" },
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (uiState.profile.role == "doctor") {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Verified,
+                            contentDescription = "Verified Doctor",
+                            tint = Color(0xFF1DA1F2), // Classic verified blue
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -246,11 +310,9 @@ fun ProfileScreen(
                     Text("View My Posts", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
-                // --- NEW: DOCTOR LINKING SYSTEM ---
                 HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp))
 
                 if (uiState.profile.role == "doctor") {
-                    // DOCTOR VIEW: Show their ID to share
                     Text("Doctor Portal", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.Start))
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
@@ -272,7 +334,6 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
-                    // PATIENT VIEW: Field to enter Doctor ID
                     Text("My Care Provider", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.Start))
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -301,7 +362,6 @@ fun ProfileScreen(
                         Text("Doctor Linked Successfully!", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
                     }
 
-                    // Show Chat Button if Linked
                     if (!uiState.profile.assignedDoctorId.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(

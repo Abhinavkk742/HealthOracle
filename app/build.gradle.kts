@@ -125,7 +125,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.0.0")
     // DataStore
     implementation(libs.datastore.prefs)
-
+    implementation("io.coil-kt:coil-compose:2.5.0")
     // ✅ NEW: Official Google Generative AI SDK
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 }
