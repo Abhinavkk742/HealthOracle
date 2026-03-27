@@ -49,7 +49,6 @@ fun ChatScreen(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     val replyingTo by viewModel.replyingToMessage.collectAsState()
 
-    // Manage Selected Message for Long Press Menu
     var selectedMessageForOptions by remember { mutableStateOf<ChatMessage?>(null) }
 
     val imagePicker = rememberLauncherForActivityResult(
@@ -62,7 +61,6 @@ fun ChatScreen(
         viewModel.markMessagesAsSeen()
     }
 
-    // Long Press Action Dialog
     if (selectedMessageForOptions != null) {
         AlertDialog(
             onDismissRequest = { selectedMessageForOptions = null },
@@ -77,7 +75,6 @@ fun ChatScreen(
                 }
             },
             dismissButton = {
-                // Only allow deletion if the current user sent it and it isn't already deleted
                 if (selectedMessageForOptions?.senderId == currentUserId && selectedMessageForOptions?.isDeleted == false) {
                     TextButton(onClick = {
                         viewModel.deleteMessage(selectedMessageForOptions!!.messageId)
@@ -119,7 +116,6 @@ fun ChatScreen(
                         .fillMaxWidth()
                         .navigationBarsPadding()
                 ) {
-                    // Reply Preview
                     if (replyingTo != null) {
                         Row(
                             modifier = Modifier
@@ -151,7 +147,6 @@ fun ChatScreen(
                         }
                     }
 
-                    // Image Preview
                     if (selectedImageUri != null) {
                         Box(modifier = Modifier.padding(16.dp)) {
                             AsyncImage(
@@ -174,7 +169,6 @@ fun ChatScreen(
                         }
                     }
 
-                    // Text Input
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -230,6 +224,7 @@ fun ChatScreen(
             items(messages) { message ->
                 MessageBubble(
                     message = message,
+                    allMessages = messages,
                     isFromCurrentUser = message.senderId == currentUserId,
                     onLongPress = { selectedMessageForOptions = message }
                 )
@@ -243,6 +238,7 @@ fun ChatScreen(
 @Composable
 fun MessageBubble(
     message: ChatMessage,
+    allMessages: List<ChatMessage>,
     isFromCurrentUser: Boolean,
     onLongPress: () -> Unit
 ) {
@@ -268,14 +264,13 @@ fun MessageBubble(
                     else MaterialTheme.colorScheme.secondaryContainer
                 )
                 .combinedClickable(
-                    onClick = { /* Do nothing on tap */ },
-                    onLongClick = onLongPress // Triggers Dialog
+                    onClick = { },
+                    onLongClick = onLongPress
                 )
                 .padding(4.dp)
         ) {
             Column(modifier = Modifier.padding(8.dp)) {
 
-                // --- Deleted State ---
                 if (message.isDeleted) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -295,8 +290,20 @@ fun MessageBubble(
                         )
                     }
                 } else {
-                    // --- Quoted Reply Section ---
-                    if (message.replyToMessageText != null) {
+                    val showReplyPreview = message.replyToMessageText != null
+
+                    if (showReplyPreview) {
+                        val liveParent = message.replyToMessageId?.let { id -> allMessages.find { it.messageId == id } }
+                        // Check if parent is actually deleted, OR if the database cascaded the text
+                        val isParentDeleted = liveParent?.isDeleted == true || message.replyToMessageText == "Deleted Message"
+
+                        val replyPreviewText = when {
+                            isParentDeleted -> "Deleted Message"
+                            liveParent != null && liveParent.messageText.isNotBlank() -> liveParent.messageText
+                            message.replyToMessageText?.isNotBlank() == true -> message.replyToMessageText
+                            else -> "Image"
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(0.8f)
@@ -313,10 +320,16 @@ fun MessageBubble(
                                     else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                                 )
                                 Text(
-                                    text = message.replyToMessageText,
+                                    text = replyPreviewText!!,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary
-                                    else MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontStyle = if (isParentDeleted) FontStyle.Italic else FontStyle.Normal,
+                                    color = if (isParentDeleted) {
+                                        if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
+                                        else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                                    } else {
+                                        if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSecondaryContainer
+                                    },
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -325,7 +338,6 @@ fun MessageBubble(
                         Spacer(modifier = Modifier.height(6.dp))
                     }
 
-                    // --- Attached Image Section ---
                     if (message.imageUrl != null) {
                         AsyncImage(
                             model = message.imageUrl,
@@ -339,7 +351,6 @@ fun MessageBubble(
                         Spacer(modifier = Modifier.height(6.dp))
                     }
 
-                    // --- Main Text Section ---
                     if (message.messageText.isNotBlank()) {
                         Text(
                             text = message.messageText,
@@ -353,7 +364,6 @@ fun MessageBubble(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // --- TEXT-BASED Read Receipts ---
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = timeString,
@@ -370,7 +380,6 @@ fun MessageBubble(
                     else -> "Sent"
                 }
 
-                // Blue color if seen, otherwise gray
                 val statusColor = if (message.status == "seen") Color(0xFF34B7F1) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
 
                 Text(

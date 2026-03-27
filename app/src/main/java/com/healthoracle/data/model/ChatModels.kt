@@ -9,10 +9,10 @@ data class ChatMessage(
 
     val status: String = "sent", // Can be "sent", "delivered", "seen"
     val imageUrl: String? = null,
+    val replyToMessageId: String? = null, // NEW: Links to the exact message
     val replyToMessageText: String? = null,
     val replyToMessageSender: String? = null,
 
-    // NEW: Track if the message was deleted
     val isDeleted: Boolean = false
 )
 

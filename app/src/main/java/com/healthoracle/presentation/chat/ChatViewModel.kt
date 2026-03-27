@@ -67,7 +67,6 @@ class ChatViewModel @Inject constructor(
         _replyingToMessage.value = message
     }
 
-    // NEW: Delete Message
     fun deleteMessage(messageId: String) {
         viewModelScope.launch {
             chatRepository.deleteMessageForEveryone(patientId, doctorId, messageId)
@@ -88,7 +87,6 @@ class ChatViewModel @Inject constructor(
             try {
                 var uploadedImageUrl: String? = null
                 if (imageUri != null) {
-                    // Triggers the Cloudinary Upload
                     uploadedImageUrl = chatRepository.uploadChatImageToCloudinary(imageUri)
                 }
 
@@ -99,6 +97,7 @@ class ChatViewModel @Inject constructor(
                     receiverId = receiverId,
                     messageText = text,
                     imageUrl = uploadedImageUrl,
+                    replyToMessageId = replyTo?.messageId, // NEW: Pass the ID
                     replyToMessageText = replyTo?.messageText,
                     replyToMessageSender = replyTo?.senderId
                 )

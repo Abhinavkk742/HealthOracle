@@ -2,6 +2,7 @@ package com.healthoracle.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.healthoracle.data.model.ChatMessage
@@ -26,18 +27,17 @@ import javax.inject.Inject
 
 class ChatRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
-    @ApplicationContext private val context: Context // Required for URI processing
+    @ApplicationContext private val context: Context
 ) {
     private fun getThreadId(patientId: String, doctorId: String): String {
         val ids = listOf(patientId, doctorId).sorted()
         return "${ids[0]}_${ids[1]}"
     }
 
-    // Cloudinary Image Upload
     suspend fun uploadChatImageToCloudinary(imageUri: Uri): String? {
         return withContext(Dispatchers.IO) {
             try {
-                // 1. Convert URI to a temporary file
+                Log.d("Cloudinary", "Starting image upload...")
                 val inputStream = context.contentResolver.openInputStream(imageUri)
                 val tempFile = File(context.cacheDir, "upload_temp_image_${System.currentTimeMillis()}.jpg")
                 val outputStream = FileOutputStream(tempFile)
@@ -45,30 +45,31 @@ class ChatRepository @Inject constructor(
                 inputStream?.close()
                 outputStream.close()
 
-                // 2. Upload to Cloudinary Unsigned Endpoint
                 val client = OkHttpClient()
                 val requestBody = MultipartBody.Builder()
                     .setType(MultipartBody.FORM)
                     .addFormDataPart("file", tempFile.name, tempFile.asRequestBody("image/*".toMediaTypeOrNull()))
-                    .addFormDataPart("upload_preset", "YOUR_UPLOAD_PRESET") // <--- TODO: CHANGE THIS
+                    .addFormDataPart("upload_preset", "YOUR_UPLOAD_PRESET") // TODO: YOUR PRESET
                     .build()
 
                 val request = Request.Builder()
-                    .url("https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload") // <--- TODO: CHANGE THIS
+                    .url("https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload") // TODO: YOUR CLOUD NAME
                     .post(requestBody)
                     .build()
 
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string()
 
-                tempFile.delete() // Clean up temp file
+                tempFile.delete()
 
                 if (response.isSuccessful && responseBody != null) {
                     val jsonObject = JSONObject(responseBody)
-                    return@withContext jsonObject.getString("secure_url") // Returns the HTTPS image link
+                    return@withContext jsonObject.getString("secure_url")
+                } else {
+                    Log.e("Cloudinary", "Upload failed: $responseBody")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("Cloudinary", "Exception during upload", e)
             }
             return@withContext null
         }
@@ -81,6 +82,7 @@ class ChatRepository @Inject constructor(
         receiverId: String,
         messageText: String,
         imageUrl: String? = null,
+        replyToMessageId: String? = null,
         replyToMessageText: String? = null,
         replyToMessageSender: String? = null
     ): Boolean {
@@ -96,6 +98,7 @@ class ChatRepository @Inject constructor(
                 timestamp = System.currentTimeMillis(),
                 status = "sent",
                 imageUrl = imageUrl,
+                replyToMessageId = replyToMessageId,
                 replyToMessageText = replyToMessageText,
                 replyToMessageSender = replyToMessageSender,
                 isDeleted = false
@@ -115,23 +118,35 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    // Delete Message Logic
     suspend fun deleteMessageForEveryone(patientId: String, doctorId: String, messageId: String) {
         try {
             val threadId = getThreadId(patientId, doctorId)
-            firestore.collection("chats")
+            val messagesRef = firestore.collection("chats")
                 .document(threadId)
                 .collection("messages")
-                .document(messageId)
-                .update(
-                    mapOf(
-                        "isDeleted" to true,
-                        "messageText" to "",
-                        "imageUrl" to null
-                    )
-                ).await()
+
+            // 1. Delete the actual message
+            messagesRef.document(messageId).update(
+                mapOf(
+                    "isDeleted" to true,
+                    "messageText" to "",
+                    "imageUrl" to null
+                )
+            ).await()
+
+            // 2. Cascade Update: Find any messages that replied to this exact message ID
+            val repliesQuery = messagesRef.whereEqualTo("replyToMessageId", messageId).get().await()
+            if (!repliesQuery.isEmpty) {
+                val batch = firestore.batch()
+                for (doc in repliesQuery.documents) {
+                    batch.update(doc.reference, "replyToMessageText", "Deleted Message")
+                }
+                batch.commit().await()
+                Log.d("ChatRepo", "Successfully updated ${repliesQuery.size()} child replies.")
+            }
+
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("ChatRepo", "Failed to delete message", e)
         }
     }
 
@@ -142,18 +157,23 @@ class ChatRepository @Inject constructor(
                 .document(threadId)
                 .collection("messages")
                 .whereEqualTo("receiverId", currentUserId)
-                .whereNotEqualTo("status", "seen")
                 .get().await()
 
             if (unreadMessages.isEmpty) return
 
             val batch = firestore.batch()
+            var hasUpdates = false
             for (doc in unreadMessages.documents) {
-                batch.update(doc.reference, "status", "seen")
+                if (doc.getString("status") != "seen") {
+                    batch.update(doc.reference, "status", "seen")
+                    hasUpdates = true
+                }
             }
-            batch.commit().await()
+            if (hasUpdates) {
+                batch.commit().await()
+            }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("ChatRepo", "Failed to mark as seen", e)
         }
     }
 
@@ -183,7 +203,6 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    // THE MISSING FUNCTION IS BACK!
     fun getPatientsForDoctor(doctorId: String): Flow<List<UserAccount>> = callbackFlow {
         val listenerRegistration = firestore.collection("users")
             .whereEqualTo("role", "patient")
