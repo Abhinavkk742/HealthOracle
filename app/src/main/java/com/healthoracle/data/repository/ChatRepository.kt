@@ -49,11 +49,11 @@ class ChatRepository @Inject constructor(
                 val requestBody = MultipartBody.Builder()
                     .setType(MultipartBody.FORM)
                     .addFormDataPart("file", tempFile.name, tempFile.asRequestBody("image/*".toMediaTypeOrNull()))
-                    .addFormDataPart("upload_preset", "YOUR_UPLOAD_PRESET") // TODO: YOUR PRESET
+                    .addFormDataPart("upload_preset", "krfgajle") // TODO: YOUR PRESET
                     .build()
 
                 val request = Request.Builder()
-                    .url("https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload") // TODO: YOUR CLOUD NAME
+                    .url("https://api.cloudinary.com/v1_1/dpj8tzdte/image/upload") // TODO: YOUR CLOUD NAME
                     .post(requestBody)
                     .build()
 

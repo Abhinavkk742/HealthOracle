@@ -3,9 +3,12 @@ package com.healthoracle.presentation.chat
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,16 +27,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.healthoracle.data.model.ChatMessage
+import kotlinx.coroutines.launch // THE FIX: Added the coroutine launch import
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,28 +73,19 @@ fun ChatScreen(
     if (selectedMessageForOptions != null) {
         AlertDialog(
             onDismissRequest = { selectedMessageForOptions = null },
-            title = { Text("Message Options") },
-            text = { Text("What would you like to do with this message?") },
+            title = { Text("Delete Message") },
+            text = { Text("Are you sure you want to delete this message for everyone?") },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.setReplyTo(selectedMessageForOptions)
+                    viewModel.deleteMessage(selectedMessageForOptions!!.messageId)
                     selectedMessageForOptions = null
                 }) {
-                    Text("Reply")
+                    Text("Delete", color = Color.Red)
                 }
             },
             dismissButton = {
-                if (selectedMessageForOptions?.senderId == currentUserId && selectedMessageForOptions?.isDeleted == false) {
-                    TextButton(onClick = {
-                        viewModel.deleteMessage(selectedMessageForOptions!!.messageId)
-                        selectedMessageForOptions = null
-                    }) {
-                        Text("Delete for Everyone", color = Color.Red)
-                    }
-                } else {
-                    TextButton(onClick = { selectedMessageForOptions = null }) {
-                        Text("Cancel")
-                    }
+                TextButton(onClick = { selectedMessageForOptions = null }) {
+                    Text("Cancel")
                 }
             }
         )
@@ -134,7 +134,9 @@ fun ChatScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = if (replyingTo?.isDeleted == true) "Deleted Message" else (replyingTo?.messageText ?: "Image"),
+                                    text = if (replyingTo?.isDeleted == true) "Deleted Message"
+                                    else if (replyingTo?.messageText?.isNotBlank() == true) replyingTo!!.messageText
+                                    else "Image",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodySmall,
                                     maxLines = 1,
@@ -222,14 +224,92 @@ fun ChatScreen(
             reverseLayout = true
         ) {
             items(messages) { message ->
-                MessageBubble(
-                    message = message,
-                    allMessages = messages,
-                    isFromCurrentUser = message.senderId == currentUserId,
-                    onLongPress = { selectedMessageForOptions = message }
-                )
+                SwipeToReplyWrapper(
+                    onSwipe = { viewModel.setReplyTo(message) }
+                ) {
+                    MessageBubble(
+                        message = message,
+                        allMessages = messages,
+                        isFromCurrentUser = message.senderId == currentUserId,
+                        onLongPress = { selectedMessageForOptions = message }
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
             }
+        }
+    }
+}
+
+@Composable
+fun SwipeToReplyWrapper(
+    onSwipe: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val offsetX = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    var triggered by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        coroutineScope.launch {
+                            offsetX.animateTo(0f, animationSpec = tween(300))
+                        }
+                        triggered = false
+                    },
+                    onDragCancel = {
+                        coroutineScope.launch {
+                            offsetX.animateTo(0f, animationSpec = tween(300))
+                        }
+                        triggered = false
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        coroutineScope.launch {
+                            val newOffset = (offsetX.value + dragAmount).coerceIn(0f, 150f)
+                            offsetX.snapTo(newOffset)
+
+                            if (newOffset > 100f && !triggered) {
+                                triggered = true
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSwipe()
+                            } else if (newOffset < 100f && triggered) {
+                                triggered = false
+                            }
+                        }
+                    }
+                )
+            },
+        contentAlignment = Alignment.CenterStart
+    ) {
+        if (offsetX.value > 10f) {
+            val fraction = (offsetX.value / 100f).coerceIn(0f, 1f)
+            val iconSize = 24.dp * fraction
+            Box(
+                modifier = Modifier
+                    .padding(start = 16.dp)
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = fraction)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Reply,
+                    contentDescription = "Reply",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = fraction),
+                    modifier = Modifier.size(iconSize)
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier.offset { IntOffset(offsetX.value.roundToInt(), 0) }
+        ) {
+            content()
         }
     }
 }
@@ -265,7 +345,11 @@ fun MessageBubble(
                 )
                 .combinedClickable(
                     onClick = { },
-                    onLongClick = onLongPress
+                    onLongClick = {
+                        if (isFromCurrentUser && !message.isDeleted) {
+                            onLongPress()
+                        }
+                    }
                 )
                 .padding(4.dp)
         ) {
@@ -290,11 +374,10 @@ fun MessageBubble(
                         )
                     }
                 } else {
-                    val showReplyPreview = message.replyToMessageText != null
+                    val showReplyPreview = message.replyToMessageId != null || !message.replyToMessageText.isNullOrBlank()
 
                     if (showReplyPreview) {
                         val liveParent = message.replyToMessageId?.let { id -> allMessages.find { it.messageId == id } }
-                        // Check if parent is actually deleted, OR if the database cascaded the text
                         val isParentDeleted = liveParent?.isDeleted == true || message.replyToMessageText == "Deleted Message"
 
                         val replyPreviewText = when {
