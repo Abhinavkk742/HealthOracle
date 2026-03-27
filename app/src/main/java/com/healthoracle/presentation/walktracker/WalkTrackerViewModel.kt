@@ -61,7 +61,7 @@ class WalkTrackerViewModel @Inject constructor(
     ).setMinUpdateDistanceMeters(5f).build()
 
     init {
-        // Fetch any missing walks from Firebase when the ViewModel starts
+        // Automatically fetch any missing walks from Firebase when the ViewModel starts
         viewModelScope.launch {
             walkRepository.syncWalksFromFirebase()
         }
@@ -154,6 +154,12 @@ class WalkTrackerViewModel @Inject constructor(
         }
     }
 
+    fun deleteSession(session: WalkSession) {
+        viewModelScope.launch {
+            walkRepository.deleteSession(session)
+        }
+    }
+
     private fun startTimer() {
         timerJob = viewModelScope.launch {
             while (true) {
@@ -179,11 +185,7 @@ class WalkTrackerViewModel @Inject constructor(
         return if (meters >= 1000) "%.2f km".format(meters / 1000)
         else "%.0f m".format(meters)
     }
-    fun syncFromFirebase() {
-        viewModelScope.launch {
-            walkRepository.syncWalksFromFirebase()
-        }
-    }
+
     override fun onCleared() {
         super.onCleared()
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }

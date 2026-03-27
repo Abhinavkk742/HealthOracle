@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.ArrowForwardIos
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -135,21 +134,12 @@ fun WalkTrackerScreen(
             )
         }
 
-        // Walk History Header with Refresh Button
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "Walk History",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-            IconButton(onClick = { viewModel.syncFromFirebase() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Sync Data", tint = Color(0xFF01696f))
-            }
-        }
+        Text(
+            "Walk History",
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp),
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp
+        )
 
         if (walkHistory.isEmpty()) {
             Box(
@@ -171,7 +161,8 @@ fun WalkTrackerScreen(
                     WalkHistoryCard(
                         session = session,
                         viewModel = viewModel,
-                        onViewRoute = { onNavigateToWalkDetail(session.id) }
+                        onViewRoute = { onNavigateToWalkDetail(session.id) },
+                        onDelete = { viewModel.deleteSession(session) }
                     )
                 }
             }
@@ -191,7 +182,8 @@ fun StatCard(label: String, value: String) {
 fun WalkHistoryCard(
     session: WalkSession,
     viewModel: WalkTrackerViewModel,
-    onViewRoute: () -> Unit = {}
+    onViewRoute: () -> Unit = {},
+    onDelete: () -> Unit = {}
 ) {
     val dateFormat = SimpleDateFormat("MMM d, yyyy  hh:mm a", Locale.getDefault())
     Card(
@@ -221,12 +213,13 @@ fun WalkHistoryCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Icon(
-                imageVector = Icons.Rounded.ArrowForwardIos,
-                contentDescription = "View route",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(16.dp)
-            )
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = "Delete walk",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }
