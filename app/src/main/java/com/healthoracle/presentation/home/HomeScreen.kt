@@ -9,7 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Chat // NEW
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.History
@@ -18,16 +18,18 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.rounded.ArrowForwardIos
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState // NEW
-import androidx.compose.runtime.getValue // NEW
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel // NEW
-import com.healthoracle.presentation.profile.ProfileViewModel // NEW
+import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.healthoracle.presentation.profile.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,8 +40,8 @@ fun HomeScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToCalendar: () -> Unit,
-    onNavigateToChat: (patientId: String, doctorId: String, contactName: String) -> Unit, // NEW
-    viewModel: ProfileViewModel = hiltViewModel() // NEW: Reuse this to instantly get the assigned doctor!
+    onNavigateToChat: (patientId: String, doctorId: String, contactName: String) -> Unit,
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val profileState by viewModel.uiState.collectAsState()
 
@@ -50,11 +52,24 @@ fun HomeScreen(
                 title = { },
                 actions = {
                     IconButton(onClick = onNavigateToProfile) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profile",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        // FIX: Show Profile Picture if available
+                        if (!profileState.profile.profilePictureUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = profileState.profile.profilePictureUrl,
+                                contentDescription = "Profile",
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profile",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -63,7 +78,6 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            // NEW: Show a Floating Action Button ONLY if they are a patient and have a doctor assigned
             if (profileState.profile.role == "patient" && !profileState.profile.assignedDoctorId.isNullOrEmpty()) {
                 ExtendedFloatingActionButton(
                     onClick = {
@@ -167,7 +181,7 @@ fun HomeScreen(
                 onClick = onNavigateToForum
             )
 
-            Spacer(modifier = Modifier.height(80.dp)) // Added extra padding so the FAB doesn't cover the last card
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }

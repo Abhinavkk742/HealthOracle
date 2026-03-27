@@ -19,10 +19,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.healthoracle.data.model.UserAccount
+import com.healthoracle.presentation.profile.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,11 +34,13 @@ fun DoctorDashboardScreen(
     onNavigateToForum: () -> Unit,
     onNavigateToPatientTasks: (patientId: String, patientName: String) -> Unit,
     onNavigateToProfile: () -> Unit,
-    onLogout: () -> Unit, // Kept parameter if you need it elsewhere, but button removed
-    viewModel: DoctorDashboardViewModel = hiltViewModel()
+    onLogout: () -> Unit,
+    viewModel: DoctorDashboardViewModel = hiltViewModel(),
+    profileViewModel: ProfileViewModel = hiltViewModel() // NEW: Added to get Doctor's profile picture
 ) {
     val patients by viewModel.patients.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val doctorProfileState by profileViewModel.uiState.collectAsState()
     val doctorId = viewModel.currentDoctorId
 
     Scaffold(
@@ -47,9 +52,20 @@ fun DoctorDashboardScreen(
                         Icon(Icons.Default.Forum, contentDescription = "Community Forum")
                     }
                     IconButton(onClick = onNavigateToProfile) {
-                        Icon(Icons.Default.AccountCircle, contentDescription = "My Profile")
+                        // FIX: Show Doctor's Profile Picture
+                        if (!doctorProfileState.profile.profilePictureUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = doctorProfileState.profile.profilePictureUrl,
+                                contentDescription = "My Profile",
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.AccountCircle, contentDescription = "My Profile", modifier = Modifier.size(32.dp))
+                        }
                     }
-                    // Logout button removed as requested
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -116,19 +132,31 @@ fun PatientCardItem(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.AccountCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(36.dp)
+            // FIX: Show Patient's Profile Picture
+            if (!patient.profilePictureUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = patient.profilePictureUrl,
+                    contentDescription = "Patient Photo",
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.AccountCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
