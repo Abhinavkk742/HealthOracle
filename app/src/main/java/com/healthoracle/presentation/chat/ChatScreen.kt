@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
@@ -36,10 +37,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage // NEW: Imported for loading states
 import com.healthoracle.data.model.ChatMessage
-import kotlinx.coroutines.launch // THE FIX: Added the coroutine launch import
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
@@ -60,6 +63,8 @@ fun ChatScreen(
 
     var selectedMessageForOptions by remember { mutableStateOf<ChatMessage?>(null) }
 
+    var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
+
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -68,6 +73,42 @@ fun ChatScreen(
 
     LaunchedEffect(messages) {
         viewModel.markMessagesAsSeen()
+    }
+
+    // Full Screen Image Dialog with Loader
+    if (fullScreenImageUrl != null) {
+        Dialog(
+            onDismissRequest = { fullScreenImageUrl = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                SubcomposeAsyncImage(
+                    model = fullScreenImageUrl,
+                    contentDescription = "Full Screen Image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Color.White)
+                        }
+                    }
+                )
+
+                IconButton(
+                    onClick = { fullScreenImageUrl = null },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                }
+            }
+        }
     }
 
     if (selectedMessageForOptions != null) {
@@ -151,13 +192,23 @@ fun ChatScreen(
 
                     if (selectedImageUri != null) {
                         Box(modifier = Modifier.padding(16.dp)) {
-                            AsyncImage(
+                            SubcomposeAsyncImage(
                                 model = selectedImageUri,
                                 contentDescription = "Selected Image",
                                 modifier = Modifier
                                     .size(100.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
-                                contentScale = ContentScale.Crop
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant), // Placeholder background
+                                contentScale = ContentScale.Crop,
+                                loading = {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
+                                }
                             )
                             IconButton(
                                 onClick = { selectedImageUri = null },
@@ -231,7 +282,8 @@ fun ChatScreen(
                         message = message,
                         allMessages = messages,
                         isFromCurrentUser = message.senderId == currentUserId,
-                        onLongPress = { selectedMessageForOptions = message }
+                        onLongPress = { selectedMessageForOptions = message },
+                        onImageClick = { url -> fullScreenImageUrl = url }
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -320,7 +372,8 @@ fun MessageBubble(
     message: ChatMessage,
     allMessages: List<ChatMessage>,
     isFromCurrentUser: Boolean,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
+    onImageClick: (String) -> Unit
 ) {
     val formatter = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
     val timeString = formatter.format(Date(message.timestamp))
@@ -422,14 +475,27 @@ fun MessageBubble(
                     }
 
                     if (message.imageUrl != null) {
-                        AsyncImage(
+                        // SubcomposeAsyncImage adds the loading spinner while fetching
+                        SubcomposeAsyncImage(
                             model = message.imageUrl,
                             contentDescription = "Shared Image",
                             modifier = Modifier
                                 .fillMaxWidth(0.7f)
-                                .heightIn(max = 250.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Crop
+                                .heightIn(min = 150.dp, max = 250.dp) // Minimum height prevents layout jumping
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.Black.copy(alpha = 0.1f)) // Placeholder tint
+                                .clickable { onImageClick(message.imageUrl) },
+                            contentScale = ContentScale.Crop,
+                            loading = {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(
+                                        color = if (isFromCurrentUser) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                     }
