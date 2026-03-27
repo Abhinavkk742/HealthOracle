@@ -28,7 +28,7 @@ import com.healthoracle.presentation.skin.SkinDiseaseScreen
 @Composable
 fun HealthOracleNavGraph(
     navController: NavHostController,
-    startDestination: String // Passed in dynamically
+    startDestination: String
 ) {
     NavHost(
         navController = navController,
@@ -39,7 +39,6 @@ fun HealthOracleNavGraph(
         popExitTransition = { slideOutHorizontally(targetOffsetX = { it }) + fadeOut() }
     ) {
 
-        // --- ONBOARDING ---
         composable(route = Screen.Onboarding.route) {
             OnboardingScreen(
                 onFinishOnboarding = {
@@ -225,11 +224,14 @@ fun HealthOracleNavGraph(
             val chatViewModel: ChatViewModel = hiltViewModel()
             val messages by chatViewModel.messages.collectAsState()
 
+            // FIX: Collecting the newly added Contact Profile Url
+            val contactProfileUrl by chatViewModel.contactProfileUrl.collectAsState()
+
             ChatScreen(
                 contactName = contactName,
+                contactProfileUrl = contactProfileUrl, // FIX: Passing it to the UI
                 currentUserId = chatViewModel.currentUserId,
                 messages = messages,
-                // THE FIX: Now passing both text and imageUri
                 onSendMessage = { text, imageUri -> chatViewModel.sendMessage(text, imageUri) },
                 onNavigateBack = { navController.popBackStack() }
             )

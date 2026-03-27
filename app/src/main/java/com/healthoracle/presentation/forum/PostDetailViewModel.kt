@@ -143,7 +143,6 @@ class PostDetailViewModel @Inject constructor(
             .dispatch()
     }
 
-    // FIXED: Correctly pulls the name from the "users" collection now!
     fun addComment(content: String, replyToCommentId: String? = null, replyToAuthorName: String? = null) {
         val currentUser = auth.currentUser ?: return
         val authorId = currentUser.uid
@@ -152,9 +151,11 @@ class PostDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _isCommenting.value = true
             try {
-                // THE FIX: Looking up the fresh profile name from Firestore
+                // Fetching user details including profile URL and Role
                 val userDoc = firestore.collection("users").document(authorId).get().await()
                 val profileName = userDoc.getString("name")
+                val profileUrl = userDoc.getString("profilePictureUrl")
+                val role = userDoc.getString("role") ?: "patient"
 
                 val authorName = if (!profileName.isNullOrBlank()) {
                     "u/$profileName"
@@ -168,6 +169,8 @@ class PostDetailViewModel @Inject constructor(
                     postId = postId,
                     authorId = authorId,
                     authorName = authorName,
+                    authorRole = role,               // FIX: Attaches Verified Tick if doctor
+                    authorProfileUrl = profileUrl,   // FIX: Attaches Profile Picture
                     content = content,
                     timestamp = System.currentTimeMillis(),
                     replyToCommentId = replyToCommentId,

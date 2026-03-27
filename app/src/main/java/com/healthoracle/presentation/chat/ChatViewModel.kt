@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 import com.healthoracle.data.model.ChatMessage
 import com.healthoracle.data.repository.ChatRepository
@@ -14,11 +15,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
+    private val firestore: FirebaseFirestore, // Injecting Firestore to fetch contact details
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -31,6 +34,10 @@ class ChatViewModel @Inject constructor(
     private val _replyingToMessage = MutableStateFlow<ChatMessage?>(null)
     val replyingToMessage: StateFlow<ChatMessage?> = _replyingToMessage.asStateFlow()
 
+    // NEW: StateFlow to hold the contact's profile picture URL
+    private val _contactProfileUrl = MutableStateFlow<String?>(null)
+    val contactProfileUrl: StateFlow<String?> = _contactProfileUrl.asStateFlow()
+
     val patientId: String = checkNotNull(savedStateHandle["patientId"]) { "patientId is required" }
     val doctorId: String = checkNotNull(savedStateHandle["doctorId"]) { "doctorId is required" }
 
@@ -38,6 +45,19 @@ class ChatViewModel @Inject constructor(
 
     init {
         listenForMessages()
+        fetchContactProfile() // Fetch the profile picture on load
+    }
+
+    private fun fetchContactProfile() {
+        viewModelScope.launch {
+            val contactId = if (currentUserId == patientId) doctorId else patientId
+            try {
+                val doc = firestore.collection("users").document(contactId).get().await()
+                _contactProfileUrl.value = doc.getString("profilePictureUrl")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     private fun listenForMessages() {
@@ -97,7 +117,7 @@ class ChatViewModel @Inject constructor(
                     receiverId = receiverId,
                     messageText = text,
                     imageUrl = uploadedImageUrl,
-                    replyToMessageId = replyTo?.messageId, // NEW: Pass the ID
+                    replyToMessageId = replyTo?.messageId,
                     replyToMessageText = replyTo?.messageText,
                     replyToMessageSender = replyTo?.senderId
                 )
