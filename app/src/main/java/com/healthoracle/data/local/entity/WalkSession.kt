@@ -7,10 +7,10 @@ import androidx.room.PrimaryKey
 data class WalkSession(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val startTime: Long,
-    val endTime: Long,
-    val distanceMeters: Float,
-    val steps: Int,
-    val durationSeconds: Long,
-    val routePointsJson: String // JSON array of lat/lng points
+    val startTime: Long = 0L,
+    val endTime: Long = 0L,
+    val distanceMeters: Float = 0f,
+    val steps: Int = 0,
+    val durationSeconds: Long = 0L,
+    val routePointsJson: String = "" // JSON array of lat/lng points
 )

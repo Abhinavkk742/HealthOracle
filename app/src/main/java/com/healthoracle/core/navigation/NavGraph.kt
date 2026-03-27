@@ -25,6 +25,7 @@ import com.healthoracle.presentation.home.HomeScreen
 import com.healthoracle.presentation.onboarding.OnboardingScreen
 import com.healthoracle.presentation.skin.SkinDiseaseScreen
 import com.healthoracle.presentation.walktracker.WalkTrackerScreen
+import com.healthoracle.presentation.walktracker.WalkHistoryDetailScreen
 
 @Composable
 fun HealthOracleNavGraph(
@@ -249,7 +250,24 @@ fun HealthOracleNavGraph(
         }
 
         composable(route = Screen.WalkTracker.route) {
-            WalkTrackerScreen()
+            WalkTrackerScreen(
+                onNavigateToWalkDetail = { sessionId ->
+                    navController.navigate("walk_history_detail/$sessionId")
+                }
+            )
+        }
+
+        composable(
+            route = "walk_history_detail/{sessionId}",
+            arguments = listOf(
+                navArgument("sessionId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getLong("sessionId") ?: return@composable
+            WalkHistoryDetailScreen(
+                sessionId = sessionId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable(

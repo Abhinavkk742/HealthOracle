@@ -28,6 +28,7 @@ import java.util.*
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun WalkTrackerScreen(
+    onNavigateToWalkDetail: (Long) -> Unit,
     viewModel: WalkTrackerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -134,13 +135,21 @@ fun WalkTrackerScreen(
             )
         }
 
-        // Walk History
-        Text(
-            "Walk History",
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp),
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp
-        )
+        // Walk History Header with Refresh Button
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Walk History",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+            IconButton(onClick = { viewModel.syncFromFirebase() }) {
+                Icon(Icons.Default.Refresh, contentDescription = "Sync Data", tint = Color(0xFF01696f))
+            }
+        }
 
         if (walkHistory.isEmpty()) {
             Box(
@@ -161,7 +170,8 @@ fun WalkTrackerScreen(
                 items(walkHistory) { session ->
                     WalkHistoryCard(
                         session = session,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        onViewRoute = { onNavigateToWalkDetail(session.id) }
                     )
                 }
             }
