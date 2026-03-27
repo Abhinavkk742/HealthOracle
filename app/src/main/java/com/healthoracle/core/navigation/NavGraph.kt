@@ -92,7 +92,13 @@ fun HealthOracleNavGraph(
                 onNavigateToHistory = { navController.navigate(Screen.History.route) },
                 onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
                 onNavigateToWalkTracker = { navController.navigate(Screen.WalkTracker.route) },
-                onNavigateToChat = { patientId, doctorId, contactName ->
+                onNavigateToPrescriptions = { patientId: String, doctorId: String ->
+                    // ✅ FIXED: Using safe Query Parameters instead of Slashes
+                    val safeDocId = if (doctorId.isNotBlank()) doctorId else "none"
+                    val safeName = android.net.Uri.encode("My Prescriptions")
+                    navController.navigate("prescriptions?patientId=$patientId&patientName=$safeName&doctorId=$safeDocId&isDoctor=false")
+                },
+                onNavigateToChat = { patientId: String, doctorId: String, contactName: String ->
                     navController.navigate(Screen.Chat.createRoute(patientId, doctorId, contactName))
                 }
             )
@@ -103,7 +109,7 @@ fun HealthOracleNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToMyPosts = { navController.navigate("my_posts") },
-                onNavigateToChat = { patientId, doctorId, contactName ->
+                onNavigateToChat = { patientId: String, doctorId: String, contactName: String ->
                     navController.navigate(Screen.Chat.createRoute(patientId, doctorId, contactName))
                 },
                 onNavigateToLogin = {
@@ -232,13 +238,21 @@ fun HealthOracleNavGraph(
         }
 
         composable(route = Screen.DoctorDashboard.route) {
+            val dashboardViewModel: com.healthoracle.presentation.doctor.DoctorDashboardViewModel = hiltViewModel()
+            val doctorId = dashboardViewModel.currentDoctorId
+
             com.healthoracle.presentation.doctor.DoctorDashboardScreen(
-                onNavigateToChat = { patientId, doctorId, patientName ->
-                    navController.navigate(Screen.Chat.createRoute(patientId, doctorId, patientName))
+                onNavigateToChat = { patientId: String, docId: String, patientName: String ->
+                    navController.navigate(Screen.Chat.createRoute(patientId, docId, patientName))
                 },
                 onNavigateToForum = { navController.navigate(Screen.Forum.route) },
-                onNavigateToPatientTasks = { patientId, patientName ->
+                onNavigateToPatientTasks = { patientId: String, patientName: String ->
                     navController.navigate(Screen.PatientTasks.createRoute(patientId, patientName))
+                },
+                onNavigateToPrescriptions = { patientId: String, patientName: String ->
+                    // ✅ FIXED: Using safe Query Parameters instead of Slashes
+                    val safeName = android.net.Uri.encode(patientName.ifBlank { "Patient" })
+                    navController.navigate("prescriptions?patientId=$patientId&patientName=$safeName&doctorId=$doctorId&isDoctor=true")
                 },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onLogout = {
@@ -282,6 +296,30 @@ fun HealthOracleNavGraph(
             com.healthoracle.presentation.doctor.PatientTasksScreen(
                 patientId = patientId,
                 patientName = patientName,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ✅ FIXED: Configured the Route to accept Query Parameters safely
+        composable(
+            route = "prescriptions?patientId={patientId}&patientName={patientName}&doctorId={doctorId}&isDoctor={isDoctor}",
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType; defaultValue = "" },
+                navArgument("patientName") { type = NavType.StringType; defaultValue = "" },
+                navArgument("doctorId") { type = NavType.StringType; defaultValue = "" },
+                navArgument("isDoctor") { type = NavType.BoolType; defaultValue = false }
+            )
+        ) { backStackEntry ->
+            val patientId = backStackEntry.arguments?.getString("patientId") ?: ""
+            val patientName = backStackEntry.arguments?.getString("patientName") ?: ""
+            val doctorId = backStackEntry.arguments?.getString("doctorId") ?: ""
+            val isDoctor = backStackEntry.arguments?.getBoolean("isDoctor") ?: false
+
+            com.healthoracle.presentation.doctor.PrescriptionScreen(
+                patientId = patientId,
+                patientName = patientName,
+                doctorId = doctorId,
+                isDoctor = isDoctor,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

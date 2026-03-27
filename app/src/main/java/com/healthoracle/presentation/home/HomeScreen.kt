@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.History
@@ -41,7 +42,8 @@ fun HomeScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToCalendar: () -> Unit,
-    onNavigateToWalkTracker: () -> Unit,                                          // ← ADD
+    onNavigateToWalkTracker: () -> Unit,
+    onNavigateToPrescriptions: (patientId: String, doctorId: String) -> Unit,
     onNavigateToChat: (patientId: String, doctorId: String, contactName: String) -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -143,7 +145,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // ─── FITNESS SECTION ──────────────────────────────────────
             Text(
                 text = "Fitness",
                 style = MaterialTheme.typography.titleMedium,
@@ -155,11 +156,10 @@ fun HomeScreen(
                 title = "Walk Tracker",
                 subtitle = "Track your walks with GPS",
                 icon = Icons.Default.DirectionsWalk,
-                onClick = onNavigateToWalkTracker                                 // ← ADD
+                onClick = onNavigateToWalkTracker
             )
 
             Spacer(modifier = Modifier.height(32.dp))
-            // ─────────────────────────────────────────────────────────
 
             Text(
                 text = "My Data",
@@ -182,6 +182,19 @@ fun HomeScreen(
                 subtitle = "Schedule health appointments",
                 icon = Icons.Default.DateRange,
                 onClick = onNavigateToCalendar
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            DashboardCard(
+                title = "My Prescriptions",
+                subtitle = "View prescriptions from your doctor",
+                icon = Icons.Default.Description,
+                onClick = {
+                    val patientId = profileState.profile.uid
+                    val doctorId = profileState.profile.assignedDoctorId ?: "none"
+                    onNavigateToPrescriptions(patientId, doctorId)
+                }
             )
 
             Spacer(modifier = Modifier.height(32.dp))

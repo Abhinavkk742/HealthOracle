@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -33,10 +34,11 @@ fun DoctorDashboardScreen(
     onNavigateToChat: (patientId: String, doctorId: String, patientName: String) -> Unit,
     onNavigateToForum: () -> Unit,
     onNavigateToPatientTasks: (patientId: String, patientName: String) -> Unit,
+    onNavigateToPrescriptions: (patientId: String, patientName: String) -> Unit,
     onNavigateToProfile: () -> Unit,
     onLogout: () -> Unit,
     viewModel: DoctorDashboardViewModel = hiltViewModel(),
-    profileViewModel: ProfileViewModel = hiltViewModel() // NEW: Added to get Doctor's profile picture
+    profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val patients by viewModel.patients.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -52,7 +54,6 @@ fun DoctorDashboardScreen(
                         Icon(Icons.Default.Forum, contentDescription = "Community Forum")
                     }
                     IconButton(onClick = onNavigateToProfile) {
-                        // FIX: Show Doctor's Profile Picture
                         if (!doctorProfileState.profile.profilePictureUrl.isNullOrEmpty()) {
                             AsyncImage(
                                 model = doctorProfileState.profile.profilePictureUrl,
@@ -103,6 +104,9 @@ fun DoctorDashboardScreen(
                             },
                             onTasksClick = {
                                 onNavigateToPatientTasks(patient.uid, patient.name)
+                            },
+                            onPrescriptionsClick = {
+                                onNavigateToPrescriptions(patient.uid, patient.name)
                             }
                         )
                     }
@@ -116,7 +120,8 @@ fun DoctorDashboardScreen(
 fun PatientCardItem(
     patient: UserAccount,
     onChatClick: () -> Unit,
-    onTasksClick: () -> Unit
+    onTasksClick: () -> Unit,
+    onPrescriptionsClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -132,7 +137,6 @@ fun PatientCardItem(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // FIX: Show Patient's Profile Picture
             if (!patient.profilePictureUrl.isNullOrEmpty()) {
                 AsyncImage(
                     model = patient.profilePictureUrl,
@@ -176,6 +180,19 @@ fun PatientCardItem(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(
+                    onClick = onPrescriptionsClick,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                ) {
+                    Icon(
+                        Icons.Default.Description,
+                        contentDescription = "View Prescriptions",
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+
                 IconButton(
                     onClick = onTasksClick,
                     modifier = Modifier
