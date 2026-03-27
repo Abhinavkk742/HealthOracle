@@ -12,7 +12,6 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -23,8 +22,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import com.healthoracle.data.model.UserAccount
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,8 +30,8 @@ fun DoctorDashboardScreen(
     onNavigateToChat: (patientId: String, doctorId: String, patientName: String) -> Unit,
     onNavigateToForum: () -> Unit,
     onNavigateToPatientTasks: (patientId: String, patientName: String) -> Unit,
-    onNavigateToProfile: () -> Unit, // NEW: Navigation to Profile
-    onLogout: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onLogout: () -> Unit, // Kept parameter if you need it elsewhere, but button removed
     viewModel: DoctorDashboardViewModel = hiltViewModel()
 ) {
     val patients by viewModel.patients.collectAsState()
@@ -46,21 +43,13 @@ fun DoctorDashboardScreen(
             TopAppBar(
                 title = { Text("My Patients", fontWeight = FontWeight.Bold) },
                 actions = {
-                    // Access Community Forum
                     IconButton(onClick = onNavigateToForum) {
                         Icon(Icons.Default.Forum, contentDescription = "Community Forum")
                     }
-                    // NEW: Access Profile Screen
                     IconButton(onClick = onNavigateToProfile) {
                         Icon(Icons.Default.AccountCircle, contentDescription = "My Profile")
                     }
-                    // Logout
-                    IconButton(onClick = {
-                        Firebase.auth.signOut()
-                        onLogout()
-                    }) {
-                        Icon(Icons.Default.Logout, contentDescription = "Logout")
-                    }
+                    // Logout button removed as requested
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -127,7 +116,6 @@ fun PatientCardItem(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Placeholder Avatar
             Box(
                 modifier = Modifier
                     .size(50.dp)
@@ -145,7 +133,6 @@ fun PatientCardItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Patient Info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = patient.name.ifEmpty { "Unknown Patient" },
@@ -160,9 +147,7 @@ fun PatientCardItem(
                 )
             }
 
-            // Action Buttons
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Task Icon Action
                 IconButton(
                     onClick = onTasksClick,
                     modifier = Modifier
@@ -176,7 +161,6 @@ fun PatientCardItem(
                     )
                 }
 
-                // Chat Icon Action
                 IconButton(
                     onClick = onChatClick,
                     modifier = Modifier

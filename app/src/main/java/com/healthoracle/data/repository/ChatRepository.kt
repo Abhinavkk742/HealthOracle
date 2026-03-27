@@ -1,35 +1,88 @@
 package com.healthoracle.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.healthoracle.data.model.ChatMessage
 import com.healthoracle.data.model.UserAccount
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
+import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 import javax.inject.Inject
 
 class ChatRepository @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    @ApplicationContext private val context: Context // Required for URI processing
 ) {
-    // Generates a consistent Thread ID for a doctor-patient pair
     private fun getThreadId(patientId: String, doctorId: String): String {
-        // Sort IDs to ensure the thread ID is the same regardless of who initiates
         val ids = listOf(patientId, doctorId).sorted()
         return "${ids[0]}_${ids[1]}"
     }
 
-    /**
-     * Sends a message to Firestore.
-     */
+    // Cloudinary Image Upload
+    suspend fun uploadChatImageToCloudinary(imageUri: Uri): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // 1. Convert URI to a temporary file
+                val inputStream = context.contentResolver.openInputStream(imageUri)
+                val tempFile = File(context.cacheDir, "upload_temp_image_${System.currentTimeMillis()}.jpg")
+                val outputStream = FileOutputStream(tempFile)
+                inputStream?.copyTo(outputStream)
+                inputStream?.close()
+                outputStream.close()
+
+                // 2. Upload to Cloudinary Unsigned Endpoint
+                val client = OkHttpClient()
+                val requestBody = MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("file", tempFile.name, tempFile.asRequestBody("image/*".toMediaTypeOrNull()))
+                    .addFormDataPart("upload_preset", "YOUR_UPLOAD_PRESET") // <--- TODO: CHANGE THIS
+                    .build()
+
+                val request = Request.Builder()
+                    .url("https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload") // <--- TODO: CHANGE THIS
+                    .post(requestBody)
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val responseBody = response.body?.string()
+
+                tempFile.delete() // Clean up temp file
+
+                if (response.isSuccessful && responseBody != null) {
+                    val jsonObject = JSONObject(responseBody)
+                    return@withContext jsonObject.getString("secure_url") // Returns the HTTPS image link
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            return@withContext null
+        }
+    }
+
     suspend fun sendMessage(
         patientId: String,
         doctorId: String,
         senderId: String,
         receiverId: String,
-        messageText: String
+        messageText: String,
+        imageUrl: String? = null,
+        replyToMessageText: String? = null,
+        replyToMessageSender: String? = null
     ): Boolean {
         return try {
             val threadId = getThreadId(patientId, doctorId)
@@ -40,10 +93,14 @@ class ChatRepository @Inject constructor(
                 senderId = senderId,
                 receiverId = receiverId,
                 messageText = messageText,
-                timestamp = System.currentTimeMillis()
+                timestamp = System.currentTimeMillis(),
+                status = "sent",
+                imageUrl = imageUrl,
+                replyToMessageText = replyToMessageText,
+                replyToMessageSender = replyToMessageSender,
+                isDeleted = false
             )
 
-            // Save message in the subcollection of the thread
             firestore.collection("chats")
                 .document(threadId)
                 .collection("messages")
@@ -58,16 +115,55 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    /**
-     * Listens to messages in real-time using Kotlin Flow.
-     */
+    // Delete Message Logic
+    suspend fun deleteMessageForEveryone(patientId: String, doctorId: String, messageId: String) {
+        try {
+            val threadId = getThreadId(patientId, doctorId)
+            firestore.collection("chats")
+                .document(threadId)
+                .collection("messages")
+                .document(messageId)
+                .update(
+                    mapOf(
+                        "isDeleted" to true,
+                        "messageText" to "",
+                        "imageUrl" to null
+                    )
+                ).await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun markMessagesAsSeen(patientId: String, doctorId: String, currentUserId: String) {
+        try {
+            val threadId = getThreadId(patientId, doctorId)
+            val unreadMessages = firestore.collection("chats")
+                .document(threadId)
+                .collection("messages")
+                .whereEqualTo("receiverId", currentUserId)
+                .whereNotEqualTo("status", "seen")
+                .get().await()
+
+            if (unreadMessages.isEmpty) return
+
+            val batch = firestore.batch()
+            for (doc in unreadMessages.documents) {
+                batch.update(doc.reference, "status", "seen")
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun getMessages(patientId: String, doctorId: String): Flow<List<ChatMessage>> = callbackFlow {
         val threadId = getThreadId(patientId, doctorId)
 
         val listenerRegistration = firestore.collection("chats")
             .document(threadId)
             .collection("messages")
-            .orderBy("timestamp", Query.Direction.DESCENDING) // Get newest first for the UI
+            .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
@@ -82,16 +178,12 @@ class ChatRepository @Inject constructor(
                 }
             }
 
-        // Clean up the listener when the Flow is cancelled (e.g., leaving the screen)
         awaitClose {
             listenerRegistration.remove()
         }
     }
 
-    /**
-     * Fetches all patients assigned to a specific doctor.
-     * Useful for the Doctor's Dashboard.
-     */
+    // THE MISSING FUNCTION IS BACK!
     fun getPatientsForDoctor(doctorId: String): Flow<List<UserAccount>> = callbackFlow {
         val listenerRegistration = firestore.collection("users")
             .whereEqualTo("role", "patient")

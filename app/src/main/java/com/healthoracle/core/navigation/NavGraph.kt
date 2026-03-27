@@ -229,7 +229,8 @@ fun HealthOracleNavGraph(
                 contactName = contactName,
                 currentUserId = chatViewModel.currentUserId,
                 messages = messages,
-                onSendMessage = { text -> chatViewModel.sendMessage(text) },
+                // THE FIX: Now passing both text and imageUri
+                onSendMessage = { text, imageUri -> chatViewModel.sendMessage(text, imageUri) },
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -244,7 +245,6 @@ fun HealthOracleNavGraph(
                 onNavigateToPatientTasks = { patientId, patientName ->
                     navController.navigate(Screen.PatientTasks.createRoute(patientId, patientName))
                 },
-                // NEW: Route the doctor to the Profile Screen
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {

@@ -1,5 +1,6 @@
 package com.healthoracle.presentation.chat
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,7 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    savedStateHandle: SavedStateHandle // Used to grab arguments passed during navigation
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -27,12 +28,12 @@ class ChatViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // We assume these are passed via Jetpack Compose Navigation routes
-    // e.g., "chat_screen/{patientId}/{doctorId}"
+    private val _replyingToMessage = MutableStateFlow<ChatMessage?>(null)
+    val replyingToMessage: StateFlow<ChatMessage?> = _replyingToMessage.asStateFlow()
+
     val patientId: String = checkNotNull(savedStateHandle["patientId"]) { "patientId is required" }
     val doctorId: String = checkNotNull(savedStateHandle["doctorId"]) { "doctorId is required" }
 
-    // Get the currently logged-in user
     val currentUserId = Firebase.auth.currentUser?.uid ?: ""
 
     init {
@@ -44,31 +45,66 @@ class ChatViewModel @Inject constructor(
             _isLoading.value = true
             chatRepository.getMessages(patientId, doctorId)
                 .catch { e ->
-                    // Log error or update an error state if needed
                     e.printStackTrace()
                     _isLoading.value = false
                 }
                 .collect { messageList ->
                     _messages.value = messageList
                     _isLoading.value = false
+                    markMessagesAsSeen()
                 }
         }
     }
 
-    fun sendMessage(messageText: String) {
-        if (messageText.isBlank() || currentUserId.isEmpty()) return
+    fun markMessagesAsSeen() {
+        if (currentUserId.isEmpty()) return
+        viewModelScope.launch {
+            chatRepository.markMessagesAsSeen(patientId, doctorId, currentUserId)
+        }
+    }
 
-        // The receiver is whoever the current user is NOT
+    fun setReplyTo(message: ChatMessage?) {
+        _replyingToMessage.value = message
+    }
+
+    // NEW: Delete Message
+    fun deleteMessage(messageId: String) {
+        viewModelScope.launch {
+            chatRepository.deleteMessageForEveryone(patientId, doctorId, messageId)
+        }
+    }
+
+    fun sendMessage(messageText: String, imageUri: Uri? = null) {
+        val text = messageText.trim()
+        if (text.isBlank() && imageUri == null) return
+        if (currentUserId.isEmpty()) return
+
         val receiverId = if (currentUserId == patientId) doctorId else patientId
 
+        val replyTo = _replyingToMessage.value
+        _replyingToMessage.value = null
+
         viewModelScope.launch {
-            chatRepository.sendMessage(
-                patientId = patientId,
-                doctorId = doctorId,
-                senderId = currentUserId,
-                receiverId = receiverId,
-                messageText = messageText.trim()
-            )
+            try {
+                var uploadedImageUrl: String? = null
+                if (imageUri != null) {
+                    // Triggers the Cloudinary Upload
+                    uploadedImageUrl = chatRepository.uploadChatImageToCloudinary(imageUri)
+                }
+
+                chatRepository.sendMessage(
+                    patientId = patientId,
+                    doctorId = doctorId,
+                    senderId = currentUserId,
+                    receiverId = receiverId,
+                    messageText = text,
+                    imageUrl = uploadedImageUrl,
+                    replyToMessageText = replyTo?.messageText,
+                    replyToMessageSender = replyTo?.senderId
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }
