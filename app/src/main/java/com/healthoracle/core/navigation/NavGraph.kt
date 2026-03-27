@@ -1,5 +1,6 @@
 package com.healthoracle.core.navigation
 
+import com.healthoracle.presentation.todo.TodoScreen
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -40,6 +41,12 @@ fun HealthOracleNavGraph(
         popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }) + fadeIn() },
         popExitTransition = { slideOutHorizontally(targetOffsetX = { it }) + fadeOut() }
     ) {
+
+        composable(route = Screen.Todo.route) {
+            TodoScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
 
         composable(route = Screen.Onboarding.route) {
             OnboardingScreen(
@@ -92,6 +99,7 @@ fun HealthOracleNavGraph(
                 onNavigateToHistory = { navController.navigate(Screen.History.route) },
                 onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
                 onNavigateToWalkTracker = { navController.navigate(Screen.WalkTracker.route) },
+                onNavigateToTodo = { navController.navigate(Screen.Todo.route) },
                 onNavigateToPrescriptions = { patientId: String, doctorId: String ->
                     // ✅ FIXED: Using safe Query Parameters instead of Slashes
                     val safeDocId = if (doctorId.isNotBlank()) doctorId else "none"

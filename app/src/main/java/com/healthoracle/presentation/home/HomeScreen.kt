@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DirectionsWalk
@@ -43,6 +44,7 @@ fun HomeScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToCalendar: () -> Unit,
     onNavigateToWalkTracker: () -> Unit,
+    onNavigateToTodo: () -> Unit,
     onNavigateToPrescriptions: (patientId: String, doctorId: String) -> Unit,
     onNavigateToChat: (patientId: String, doctorId: String, contactName: String) -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
@@ -120,6 +122,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // ── Health Diagnostics ────────────────────────────────────────
             Text(
                 text = "Health Diagnostics",
                 style = MaterialTheme.typography.titleMedium,
@@ -145,6 +148,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // ── Fitness ───────────────────────────────────────────────────
             Text(
                 text = "Fitness",
                 style = MaterialTheme.typography.titleMedium,
@@ -161,6 +165,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // ── My Data ───────────────────────────────────────────────────
             Text(
                 text = "My Data",
                 style = MaterialTheme.typography.titleMedium,
@@ -186,6 +191,16 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // ── TODAY'S TASKS ─────────────────────────────────────────────
+            DashboardCard(
+                title = "Today's Tasks",
+                subtitle = "Your calendar to-do list for today",
+                icon = Icons.Default.CheckCircle,
+                onClick = onNavigateToTodo
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             DashboardCard(
                 title = "My Prescriptions",
                 subtitle = "View prescriptions from your doctor",
@@ -199,6 +214,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // ── Community ─────────────────────────────────────────────────
             Text(
                 text = "Community",
                 style = MaterialTheme.typography.titleMedium,

@@ -6,6 +6,7 @@ import com.healthoracle.data.local.AppDatabase
 import com.healthoracle.data.local.DiabetesClassifier
 import com.healthoracle.data.local.SkinDiseaseClassifier
 import com.healthoracle.data.local.dao.AppointmentDao
+import com.healthoracle.data.local.dao.TodoDao
 import com.healthoracle.data.local.dao.WalkSessionDao
 import dagger.Module
 import dagger.Provides
@@ -38,7 +39,7 @@ object AppModule {
             AppDatabase::class.java,
             "healthoracle_db"
         )
-            .fallbackToDestructiveMigration()
+            .addMigrations(AppDatabase.MIGRATION_2_3)  // ← switched from fallbackToDestructiveMigration
             .build()
     }
 
@@ -48,10 +49,17 @@ object AppModule {
         return db.appointmentDao()
     }
 
-    // ← ADD THIS
     @Provides
     @Singleton
     fun provideWalkSessionDao(db: AppDatabase): WalkSessionDao {
         return db.walkSessionDao()
     }
+
+    // ── ADD THIS ──────────────────────────────────────────────────────────────
+    @Provides
+    @Singleton
+    fun provideTodoDao(db: AppDatabase): TodoDao {
+        return db.todoDao()
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 }

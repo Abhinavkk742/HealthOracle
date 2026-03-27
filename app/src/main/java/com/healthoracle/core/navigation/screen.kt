@@ -47,5 +47,6 @@ sealed class Screen(val route: String) {
     }
 
     // Phase 6: Fitness
-    data object WalkTracker : Screen("walk_tracker")               // ← ADD THIS
+    data object WalkTracker : Screen("walk_tracker")
+    data object Todo : Screen("todo")
 }
