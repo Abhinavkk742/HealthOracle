@@ -17,6 +17,7 @@ import androidx.glance.background
 import androidx.glance.layout.*
 import androidx.glance.text.*
 import androidx.glance.unit.ColorProvider
+import androidx.glance.appwidget.cornerRadius
 import androidx.room.Room
 import com.healthoracle.HealthOracleApp
 import com.healthoracle.data.local.AppDatabase
@@ -38,10 +39,9 @@ class TodoWidget : GlanceAppWidget() {
                 )
                     .addMigrations(AppDatabase.MIGRATION_2_3)
                     .build()
-                    .also { Log.w("TodoWidget", "Using fallback DB") }
 
             val result = db.todoDao().getTodosForDateSync(today)
-            Log.d("TodoWidget", "Loaded ${result.size} todos, done=${result.count { it.isDone }}")
+            Log.d("TodoWidget", "Loaded ${result.size} todos")
             result
         } catch (e: Exception) {
             Log.e("TodoWidget", "Error loading todos", e)
@@ -61,22 +61,21 @@ private fun WidgetContent(todos: List<TodoEntity>) {
 
     Column(
         modifier = GlanceModifier
-            .fillMaxWidth()
-            .background(ColorProvider(Color(0xFFF7F6F2)))
-            .padding(16.dp),
+            .fillMaxSize()
+            .background(ColorProvider(Color(0xFFFDFDFD)))
+            .padding(12.dp),
         verticalAlignment = Alignment.Top
     ) {
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.Horizontal.Start
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Today's Tasks",
                 style = TextStyle(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = ColorProvider(Color(0xFF28251D))
+                    fontSize = 15.sp,
+                    color = ColorProvider(Color(0xFF1A1C1E))
                 )
             )
             Spacer(modifier = GlanceModifier.defaultWeight())
@@ -85,36 +84,42 @@ private fun WidgetContent(todos: List<TodoEntity>) {
                     text = "$doneCount/$total",
                     style = TextStyle(
                         fontSize = 12.sp,
-                        color = ColorProvider(Color(0xFF7A7974))
+                        fontWeight = FontWeight.Medium,
+                        color = ColorProvider(Color(0xFF43474E))
                     )
                 )
             }
         }
 
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(10.dp))
 
         if (todos.isEmpty()) {
-            Text(
-                text = "No tasks for today",
-                style = TextStyle(
-                    fontSize = 12.sp,
-                    color = ColorProvider(Color(0xFF7A7974))
-                ),
-                modifier = GlanceModifier.padding(vertical = 8.dp)
-            )
-        } else {
-            todos.take(5).forEach { todo ->
-                TodoWidgetRow(todo)
-                Spacer(modifier = GlanceModifier.height(6.dp))
-            }
-            if (todos.size > 5) {
+            Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "+${todos.size - 5} more — open app",
+                    text = "All clear for today!",
                     style = TextStyle(
-                        fontSize = 11.sp,
-                        color = ColorProvider(Color(0xFF7A7974))
+                        fontSize = 12.sp,
+                        color = ColorProvider(Color(0xFF74777F))
                     )
                 )
+            }
+        } else {
+            Column(modifier = GlanceModifier.fillMaxWidth()) {
+                todos.take(4).forEach { todo ->
+                    TodoWidgetRow(todo)
+                    Spacer(modifier = GlanceModifier.height(8.dp))
+                }
+                if (todos.size > 4) {
+                    Text(
+                        text = "+${todos.size - 4} more in app",
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            color = ColorProvider(Color(0xFF0067FF)),
+                            fontWeight = FontWeight.Medium
+                        ),
+                        modifier = GlanceModifier.padding(start = 28.dp)
+                    )
+                }
             }
         }
     }
@@ -125,6 +130,7 @@ private fun TodoWidgetRow(todo: TodoEntity) {
     Row(
         modifier = GlanceModifier
             .fillMaxWidth()
+            .padding(vertical = 4.dp)
             .clickable(
                 actionRunCallback<TodoWidgetToggleAction>(
                     actionParametersOf(
@@ -132,29 +138,26 @@ private fun TodoWidgetRow(todo: TodoEntity) {
                         TodoWidgetToggleAction.KEY_IS_DONE to todo.isDone
                     )
                 )
-            )
-            .background(
-                ColorProvider(
-                    if (todo.isDone) Color(0x0D28251D) else Color(0xFFFFFFFF)
-                )
-            )
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Simpler, circular tick box
         Box(
             modifier = GlanceModifier
-                .size(18.dp)
+                .size(20.dp)
+                .cornerRadius(10.dp)
                 .background(
                     ColorProvider(
-                        if (todo.isDone) Color(0xFF01696F) else Color(0xFFD4D1CA)
+                        if (todo.isDone) Color(0xFF00BD6D) else Color(0xFFE1E2E4)
                     )
-                )
+                ),
+            contentAlignment = Alignment.Center
         ) {
             if (todo.isDone) {
                 Text(
                     text = "✓",
                     style = TextStyle(
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         color = ColorProvider(Color.White),
                         fontWeight = FontWeight.Bold
                     )
@@ -162,7 +165,7 @@ private fun TodoWidgetRow(todo: TodoEntity) {
             }
         }
 
-        Spacer(modifier = GlanceModifier.width(8.dp))
+        Spacer(modifier = GlanceModifier.width(10.dp))
 
         Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
@@ -170,7 +173,7 @@ private fun TodoWidgetRow(todo: TodoEntity) {
                 style = TextStyle(
                     fontSize = 13.sp,
                     color = ColorProvider(
-                        if (todo.isDone) Color(0x6628251D) else Color(0xFF28251D)
+                        if (todo.isDone) Color(0xFF909194) else Color(0xFF1A1C1E)
                     ),
                     fontWeight = if (todo.isDone) FontWeight.Normal else FontWeight.Medium,
                     textDecoration = if (todo.isDone) TextDecoration.LineThrough else TextDecoration.None
@@ -181,7 +184,7 @@ private fun TodoWidgetRow(todo: TodoEntity) {
                 text = todo.time,
                 style = TextStyle(
                     fontSize = 11.sp,
-                    color = ColorProvider(Color(0xFF7A7974))
+                    color = ColorProvider(Color(0xFF74777F))
                 )
             )
         }

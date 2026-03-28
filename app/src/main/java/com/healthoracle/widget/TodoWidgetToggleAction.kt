@@ -58,7 +58,11 @@ class TodoWidgetToggleAction : ActionCallback {
                 Log.d(TAG, "setDone($todoId, ${!isDone}) complete")
             }
 
-            Log.d(TAG, "Refreshing widget...")
+            // Use the specific glanceId to update the widget instance immediately
+            Log.d(TAG, "Refreshing specific widget instance...")
+            TodoWidget().update(context, glanceId)
+            
+            // Also update all others just in case
             TodoWidget().updateAll(context)
             Log.d(TAG, "Widget refreshed")
 
