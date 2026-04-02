@@ -1,52 +1,60 @@
 package com.healthoracle.core.navigation
 
 sealed class Screen(val route: String) {
-    // Phase 4: Onboarding & Settings
+
+    // ── Onboarding ────────────────────────────────────────────────────────────
     data object Onboarding : Screen("onboarding")
-    data object Settings : Screen("settings")
 
-    // Phase 1: Auth & Profile Screens
-    data object Login : Screen("login")
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    data object Login  : Screen("login")
     data object SignUp : Screen("signup")
-    data object Profile : Screen("profile")
 
-    // Phase 2: History Screen
-    data object History : Screen("history")
+    // ── Main patient screens (bottom nav) ────────────────────────────────────
+    data object Home        : Screen("home")
+    data object WalkTracker : Screen("walk_tracker")
+    data object Calendar    : Screen("calendar")
+    data object Forum       : Screen("forum")
+    data object Profile     : Screen("profile")
 
-    // Phase 3: Community Forum Screens
-    data object Forum : Screen("forum")
-    data object CreatePost : Screen("create_post")
-    data object PostDetail : Screen("post_detail/{postId}") {
-        fun createRoute(postId: String): String = "post_detail/$postId"
-    }
-
-    // Existing Diagnostics Screens
-    data object Home : Screen("home")
+    // ── Diagnostics ───────────────────────────────────────────────────────────
     data object SkinDisease : Screen("skin_disease")
-    data object Diabetes : Screen("diabetes")
+    data object Diabetes    : Screen("diabetes")
     data object AiSuggestion : Screen("ai_suggestion/{conditionName}/{conditionSource}") {
-        fun createRoute(conditionName: String, conditionSource: String): String =
+        fun createRoute(conditionName: String, conditionSource: String) =
             "ai_suggestion/$conditionName/$conditionSource"
     }
-    data object Calendar : Screen("calendar")
 
-    // Phase 5: Tele-health Screens
+    // ── My Data ───────────────────────────────────────────────────────────────
+    data object History : Screen("history")
+    data object Todo    : Screen("todo")
+    data object MyPosts : Screen("my_posts")
+    data object Settings : Screen("settings")
+
+    // ── Prescriptions ─────────────────────────────────────────────────────────
+    data object Prescriptions : Screen("prescriptions/{patientId}/{doctorId}") {
+        fun createRoute(patientId: String, doctorId: String) =
+            "prescriptions/$patientId/$doctorId"
+    }
+
+    // ── Forum ─────────────────────────────────────────────────────────────────
+    data object CreatePost : Screen("create_post")
+    data object PostDetail : Screen("post_detail/{postId}") {
+        fun createRoute(postId: String) = "post_detail/$postId"
+    }
+
+    // ── Doctor ────────────────────────────────────────────────────────────────
     data object DoctorDashboard : Screen("doctor_dashboard")
     data object Chat : Screen("chat/{patientId}/{doctorId}/{contactName}") {
-        fun createRoute(patientId: String, doctorId: String, contactName: String): String =
+        fun createRoute(patientId: String, doctorId: String, contactName: String) =
             "chat/$patientId/$doctorId/$contactName"
     }
-
-    // Patient Tasks Screen for Doctors
     data object PatientTasks : Screen("patient_tasks/{patientId}/{patientName}") {
-        fun createRoute(patientId: String, patientName: String): String =
+        fun createRoute(patientId: String, patientName: String) =
             "patient_tasks/$patientId/$patientName"
     }
-    data object WalkHistoryDetail : Screen("walk_history_detail/{sessionId}") {
-        fun createRoute(sessionId: Long): String = "walk_history_detail/$sessionId"
-    }
 
-    // Phase 6: Fitness
-    data object WalkTracker : Screen("walk_tracker")
-    data object Todo : Screen("todo")
+    // ── Fitness ───────────────────────────────────────────────────────────────
+    data object WalkHistoryDetail : Screen("walk_history_detail/{sessionId}") {
+        fun createRoute(sessionId: Long) = "walk_history_detail/$sessionId"
+    }
 }

@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -45,13 +47,13 @@ import java.util.Locale
 @Composable
 fun PrescriptionScreen(
     patientId: String,
-    patientName: String,
     doctorId: String,
-    isDoctor: Boolean,
+    patientName: String = "",
     onNavigateBack: () -> Unit,
     viewModel: PrescriptionViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val isDoctor = Firebase.auth.currentUser?.uid == doctorId
     val prescriptions by viewModel.prescriptions.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val uploadStatus by viewModel.uploadStatus.collectAsState()
@@ -86,7 +88,14 @@ fun PrescriptionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isDoctor) "$patientName's Prescriptions" else "My Prescriptions", fontWeight = FontWeight.Bold) },
+                title = {
+                    val title = when {
+                        isDoctor && patientName.isNotBlank() -> "$patientName's Prescriptions"
+                        isDoctor -> "Patient Prescriptions"
+                        else -> "My Prescriptions"
+                    }
+                    Text(title, fontWeight = FontWeight.Bold)
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")

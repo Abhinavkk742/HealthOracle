@@ -1,335 +1,351 @@
 package com.healthoracle.core.navigation
 
-import com.healthoracle.presentation.todo.TodoScreen
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
+import com.healthoracle.core.ui.components.HealthOracleBottomBar
+import com.healthoracle.core.ui.components.NavItem
 import com.healthoracle.presentation.aisuggestion.AiSuggestionScreen
 import com.healthoracle.presentation.auth.LoginScreen
 import com.healthoracle.presentation.auth.SignUpScreen
 import com.healthoracle.presentation.calendar.CalendarScreen
 import com.healthoracle.presentation.chat.ChatScreen
-import com.healthoracle.presentation.chat.ChatViewModel
 import com.healthoracle.presentation.diabetes.DiabetesScreen
+import com.healthoracle.presentation.doctor.DoctorDashboardScreen
+import com.healthoracle.presentation.doctor.PatientTasksScreen
+import com.healthoracle.presentation.doctor.PrescriptionScreen
+import com.healthoracle.presentation.forum.CreatePostScreen
 import com.healthoracle.presentation.forum.ForumScreen
+import com.healthoracle.presentation.forum.PostDetailScreen
+import com.healthoracle.presentation.history.HistoryScreen
 import com.healthoracle.presentation.home.HomeScreen
 import com.healthoracle.presentation.onboarding.OnboardingScreen
+import com.healthoracle.presentation.profile.ProfileScreen
+import com.healthoracle.presentation.settings.SettingsScreen
 import com.healthoracle.presentation.skin.SkinDiseaseScreen
-import com.healthoracle.presentation.walktracker.WalkTrackerScreen
+import com.healthoracle.presentation.todo.TodoScreen
 import com.healthoracle.presentation.walktracker.WalkHistoryDetailScreen
+import com.healthoracle.presentation.walktracker.WalkTrackerScreen
+
+// Bottom nav is shown on these routes only
+private val bottomNavRoutes = setOf(
+    Screen.Home.route,
+    Screen.Forum.route,
+    Screen.WalkTracker.route,
+    Screen.Profile.route,
+    Screen.Calendar.route
+)
+
+private val bottomNavItems = listOf(
+    NavItem(Icons.Filled.Home,          "Home",      Screen.Home.route),
+    NavItem(Icons.Filled.DirectionsWalk,"Activity",  Screen.WalkTracker.route),
+    NavItem(Icons.Filled.DateRange,     "Calendar",  Screen.Calendar.route),
+    NavItem(Icons.Filled.Forum,         "Forum",     Screen.Forum.route),
+    NavItem(Icons.Filled.Person,        "Profile",   Screen.Profile.route)
+)
 
 @Composable
 fun HealthOracleNavGraph(
     navController: NavHostController,
     startDestination: String
 ) {
-    NavHost(
-        navController = navController,
-        startDestination = startDestination,
-        enterTransition = { slideInHorizontally(initialOffsetX = { it }) + fadeIn() },
-        exitTransition = { slideOutHorizontally(targetOffsetX = { -it }) + fadeOut() },
-        popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }) + fadeIn() },
-        popExitTransition = { slideOutHorizontally(targetOffsetX = { it }) + fadeOut() }
-    ) {
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentEntry?.destination?.route
+    val showBottomBar = currentRoute in bottomNavRoutes
 
-        composable(route = Screen.Todo.route) {
-            TodoScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(route = Screen.Onboarding.route) {
-            OnboardingScreen(
-                onFinishOnboarding = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+    Scaffold(
+        bottomBar = {
+            if (showBottomBar) {
+                HealthOracleBottomBar(
+                    items        = bottomNavItems,
+                    currentRoute = currentRoute,
+                    onNavigate   = { route ->
+                        navController.navigate(route) {
+                            popUpTo(Screen.Home.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
-                }
-            )
+                )
+            }
         }
-
-        composable(route = Screen.Login.route) {
-            LoginScreen(
-                onNavigateToHome = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+    ) { innerPadding ->
+        NavHost(
+            navController    = navController,
+            startDestination = startDestination,
+            modifier         = Modifier.padding(innerPadding),
+            enterTransition  = { slideInHorizontally(initialOffsetX = { it }) + fadeIn() },
+            exitTransition   = { slideOutHorizontally(targetOffsetX = { -it }) + fadeOut() },
+            popEnterTransition  = { slideInHorizontally(initialOffsetX = { -it }) + fadeIn() },
+            popExitTransition   = { slideOutHorizontally(targetOffsetX = { it }) + fadeOut() }
+        ) {
+            // ── Onboarding ──────────────────────────────────────────────────
+            composable(Screen.Onboarding.route) {
+                OnboardingScreen(
+                    onFinishOnboarding = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Onboarding.route) { inclusive = true }
+                        }
                     }
-                },
-                onNavigateToDoctorDashboard = {
-                    navController.navigate(Screen.DoctorDashboard.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+                )
+            }
+
+            // ── Auth ────────────────────────────────────────────────────────
+            composable(Screen.Login.route) {
+                LoginScreen(
+                    onNavigateToHome = {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToDoctorDashboard = {
+                        navController.navigate(Screen.DoctorDashboard.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) }
+                )
+            }
+            composable(Screen.SignUp.route) {
+                SignUpScreen(
+                    onNavigateToHome = {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.SignUp.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToDoctorDashboard = {
+                        navController.navigate(Screen.DoctorDashboard.route) {
+                            popUpTo(Screen.SignUp.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToLogin = { navController.popBackStack() }
+                )
+            }
+
+            // ── Home / Dashboard ────────────────────────────────────────────
+            composable(Screen.Home.route) {
+                HomeScreen(
+                    onNavigateToSkinDisease     = { navController.navigate(Screen.SkinDisease.route) },
+                    onNavigateToDiabetes        = { navController.navigate(Screen.Diabetes.route) },
+                    onNavigateToForum           = { navController.navigate(Screen.Forum.route) },
+                    onNavigateToProfile         = { navController.navigate(Screen.Profile.route) },
+                    onNavigateToHistory         = { navController.navigate(Screen.History.route) },
+                    onNavigateToCalendar        = { navController.navigate(Screen.Calendar.route) },
+                    onNavigateToWalkTracker     = { navController.navigate(Screen.WalkTracker.route) },
+                    onNavigateToTodo            = { navController.navigate(Screen.Todo.route) },
+                    onNavigateToPrescriptions   = { patientId, doctorId ->
+                        navController.navigate(Screen.Prescriptions.createRoute(patientId, doctorId))
+                    },
+                    onNavigateToChat            = { patientId, doctorId, name ->
+                        navController.navigate(Screen.Chat.createRoute(patientId, doctorId, name))
                     }
-                },
-                onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) }
-            )
-        }
+                )
+            }
 
-        composable(route = Screen.SignUp.route) {
-            SignUpScreen(
-                onNavigateToHome = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.SignUp.route) { inclusive = true }
+            // ── Diagnostics ─────────────────────────────────────────────────
+            composable(Screen.SkinDisease.route) {
+                SkinDiseaseScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToAiSuggestion = { conditionName ->
+                        navController.navigate(Screen.AiSuggestion.createRoute(conditionName, "skin"))
                     }
-                },
-                onNavigateToDoctorDashboard = {
-                    navController.navigate(Screen.DoctorDashboard.route) {
-                        popUpTo(Screen.SignUp.route) { inclusive = true }
+                )
+            }
+            composable(Screen.Diabetes.route) {
+                DiabetesScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToAiSuggestion = { conditionName ->
+                        navController.navigate(Screen.AiSuggestion.createRoute(conditionName, "diabetes"))
                     }
-                },
-                onNavigateToLogin = { navController.popBackStack() }
-            )
-        }
+                )
+            }
+            composable(
+                route     = Screen.AiSuggestion.route,
+                arguments = listOf(
+                    navArgument("conditionName")   { type = NavType.StringType },
+                    navArgument("conditionSource") { type = NavType.StringType }
+                )
+            ) { back ->
+                AiSuggestionScreen(
+                    conditionName   = back.arguments?.getString("conditionName") ?: "",
+                    conditionSource = back.arguments?.getString("conditionSource") ?: "",
+                    onNavigateBack  = { navController.popBackStack() }
+                )
+            }
 
-        composable(route = Screen.Home.route) {
-            HomeScreen(
-                onNavigateToSkinDisease = { navController.navigate(Screen.SkinDisease.route) },
-                onNavigateToDiabetes = { navController.navigate(Screen.Diabetes.route) },
-                onNavigateToForum = { navController.navigate(Screen.Forum.route) },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                onNavigateToHistory = { navController.navigate(Screen.History.route) },
-                onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
-                onNavigateToWalkTracker = { navController.navigate(Screen.WalkTracker.route) },
-                onNavigateToTodo = { navController.navigate(Screen.Todo.route) },
-                onNavigateToPrescriptions = { patientId: String, doctorId: String ->
-                    // ✅ FIXED: Using safe Query Parameters instead of Slashes
-                    val safeDocId = if (doctorId.isNotBlank()) doctorId else "none"
-                    val safeName = android.net.Uri.encode("My Prescriptions")
-                    navController.navigate("prescriptions?patientId=$patientId&patientName=$safeName&doctorId=$safeDocId&isDoctor=false")
-                },
-                onNavigateToChat = { patientId: String, doctorId: String, contactName: String ->
-                    navController.navigate(Screen.Chat.createRoute(patientId, doctorId, contactName))
-                }
-            )
-        }
-
-        composable(route = Screen.Profile.route) {
-            com.healthoracle.presentation.profile.ProfileScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onNavigateToMyPosts = { navController.navigate("my_posts") },
-                onNavigateToChat = { patientId: String, doctorId: String, contactName: String ->
-                    navController.navigate(Screen.Chat.createRoute(patientId, doctorId, contactName))
-                },
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
+            // ── Profile & Settings ──────────────────────────────────────────
+            composable(Screen.Profile.route) {
+                ProfileScreen(
+                    onNavigateBack       = { navController.popBackStack() },
+                    onNavigateToLogin    = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToMyPosts  = { navController.navigate(Screen.MyPosts.route) },
+                    onNavigateToChat     = { patientId, doctorId, name ->
+                        navController.navigate(Screen.Chat.createRoute(patientId, doctorId, name))
                     }
-                }
-            )
-        }
-
-        composable(route = Screen.Settings.route) {
-            com.healthoracle.presentation.settings.SettingsScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
+                )
+            }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    onNavigateBack    = { navController.popBackStack() },
+                    onNavigateToLogin = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
-                }
-            )
-        }
+                )
+            }
+            composable(Screen.History.route) {
+                HistoryScreen(onNavigateBack = { navController.popBackStack() })
+            }
 
-        composable(route = Screen.History.route) {
-            com.healthoracle.presentation.history.HistoryScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            // ── Calendar & Tasks ────────────────────────────────────────────
+            composable(Screen.Calendar.route) {
+                CalendarScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.Todo.route) {
+                TodoScreen(onNavigateBack = { navController.popBackStack() })
+            }
 
-        composable(route = Screen.Calendar.route) {
-            CalendarScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(route = Screen.SkinDisease.route) {
-            SkinDiseaseScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAiSuggestion = { conditionName ->
-                    navController.navigate(Screen.AiSuggestion.createRoute(conditionName, "skin"))
-                }
-            )
-        }
-
-        composable(route = Screen.Diabetes.route) {
-            DiabetesScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAiSuggestion = { conditionName ->
-                    navController.navigate(Screen.AiSuggestion.createRoute(conditionName, "diabetes"))
-                }
-            )
-        }
-
-        composable(
-            route = Screen.AiSuggestion.route,
-            arguments = listOf(
-                navArgument("conditionName") { type = NavType.StringType },
-                navArgument("conditionSource") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val conditionName = backStackEntry.arguments?.getString("conditionName") ?: ""
-            val conditionSource = backStackEntry.arguments?.getString("conditionSource") ?: ""
-            AiSuggestionScreen(
-                conditionName = conditionName,
-                conditionSource = conditionSource,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(route = Screen.Forum.route) {
-            ForumScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
-                onNavigateToPostDetail = { postId ->
-                    navController.navigate(Screen.PostDetail.createRoute(postId))
-                }
-            )
-        }
-
-        composable(route = Screen.CreatePost.route) {
-            com.healthoracle.presentation.forum.CreatePostScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(
-            route = Screen.PostDetail.route,
-            arguments = listOf(
-                navArgument("postId") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val postId = backStackEntry.arguments?.getString("postId") ?: return@composable
-            com.healthoracle.presentation.forum.PostDetailScreen(
-                postId = postId,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(route = "my_posts") {
-            com.healthoracle.presentation.profile.MyPostsScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToPostDetail = { postId ->
-                    navController.navigate(Screen.PostDetail.createRoute(postId))
-                }
-            )
-        }
-
-        composable(
-            route = Screen.Chat.route,
-            arguments = listOf(
-                navArgument("patientId") { type = NavType.StringType },
-                navArgument("doctorId") { type = NavType.StringType },
-                navArgument("contactName") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val contactName = backStackEntry.arguments?.getString("contactName") ?: "Doctor"
-            val chatViewModel: ChatViewModel = hiltViewModel()
-            val messages by chatViewModel.messages.collectAsState()
-            val contactProfileUrl by chatViewModel.contactProfileUrl.collectAsState()
-            ChatScreen(
-                contactName = contactName,
-                contactProfileUrl = contactProfileUrl,
-                currentUserId = chatViewModel.currentUserId,
-                messages = messages,
-                onSendMessage = { text, imageUri -> chatViewModel.sendMessage(text, imageUri) },
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(route = Screen.DoctorDashboard.route) {
-            val dashboardViewModel: com.healthoracle.presentation.doctor.DoctorDashboardViewModel = hiltViewModel()
-            val doctorId = dashboardViewModel.currentDoctorId
-
-            com.healthoracle.presentation.doctor.DoctorDashboardScreen(
-                onNavigateToChat = { patientId: String, docId: String, patientName: String ->
-                    navController.navigate(Screen.Chat.createRoute(patientId, docId, patientName))
-                },
-                onNavigateToForum = { navController.navigate(Screen.Forum.route) },
-                onNavigateToPatientTasks = { patientId: String, patientName: String ->
-                    navController.navigate(Screen.PatientTasks.createRoute(patientId, patientName))
-                },
-                onNavigateToPrescriptions = { patientId: String, patientName: String ->
-                    // ✅ FIXED: Using safe Query Parameters instead of Slashes
-                    val safeName = android.net.Uri.encode(patientName.ifBlank { "Patient" })
-                    navController.navigate("prescriptions?patientId=$patientId&patientName=$safeName&doctorId=$doctorId&isDoctor=true")
-                },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
+            // ── Forum ───────────────────────────────────────────────────────
+            composable(Screen.Forum.route) {
+                ForumScreen(
+                    onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
+                    onNavigateToPostDetail = { postId ->
+                        navController.navigate(Screen.PostDetail.createRoute(postId))
+                    },
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.CreatePost.route) {
+                CreatePostScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(
+                route     = Screen.PostDetail.route,
+                arguments = listOf(navArgument("postId") { type = NavType.StringType })
+            ) { back ->
+                PostDetailScreen(
+                    postId         = back.arguments?.getString("postId") ?: "",
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.MyPosts.route) {
+                com.healthoracle.presentation.profile.MyPostsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPostDetail = { postId ->
+                        navController.navigate(Screen.PostDetail.createRoute(postId))
                     }
-                }
-            )
-        }
+                )
+            }
 
-        composable(route = Screen.WalkTracker.route) {
-            WalkTrackerScreen(
-                onNavigateToWalkDetail = { sessionId ->
-                    navController.navigate("walk_history_detail/$sessionId")
-                }
-            )
-        }
+            // ── Walk Tracker ────────────────────────────────────────────────
+            composable(Screen.WalkTracker.route) {
+                WalkTrackerScreen(
+                    onNavigateToWalkDetail = { sessionId ->
+                        navController.navigate(Screen.WalkHistoryDetail.createRoute(sessionId))
+                    }
+                )
+            }
+            composable(
+                route     = Screen.WalkHistoryDetail.route,
+                arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+            ) { back ->
+                WalkHistoryDetailScreen(
+                    sessionId      = back.arguments?.getLong("sessionId") ?: 0L,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
 
-        composable(
-            route = "walk_history_detail/{sessionId}",
-            arguments = listOf(
-                navArgument("sessionId") { type = NavType.LongType }
-            )
-        ) { backStackEntry ->
-            val sessionId = backStackEntry.arguments?.getLong("sessionId") ?: return@composable
-            WalkHistoryDetailScreen(
-                sessionId = sessionId,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            // ── Doctor flows ────────────────────────────────────────────────
+            composable(Screen.DoctorDashboard.route) {
+                DoctorDashboardScreen(
+                    onNavigateToChat = { patientId, doctorId, name ->
+                        navController.navigate(Screen.Chat.createRoute(patientId, doctorId, name))
+                    },
+                    onNavigateToForum = { navController.navigate(Screen.Forum.route) },
+                    onNavigateToPatientTasks = { patientId, name ->
+                        navController.navigate(Screen.PatientTasks.createRoute(patientId, name))
+                    },
+                    onNavigateToPrescriptions = { patientId, _ ->
+                        val doctorId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+                        navController.navigate(Screen.Prescriptions.createRoute(patientId, doctorId))
+                    },
+                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                    onLogout = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            composable(
+                route     = Screen.Chat.route,
+                arguments = listOf(
+                    navArgument("patientId")    { type = NavType.StringType },
+                    navArgument("doctorId")     { type = NavType.StringType },
+                    navArgument("contactName")  { type = NavType.StringType }
+                )
+            ) { back ->
+                val chatViewModel: com.healthoracle.presentation.chat.ChatViewModel = hiltViewModel()
+                val messages by chatViewModel.messages.collectAsState()
+                val contactProfileUrl by chatViewModel.contactProfileUrl.collectAsState()
 
-        composable(
-            route = Screen.PatientTasks.route,
-            arguments = listOf(
-                navArgument("patientId") { type = NavType.StringType },
-                navArgument("patientName") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
-            val patientName = backStackEntry.arguments?.getString("patientName") ?: "Patient"
-            com.healthoracle.presentation.doctor.PatientTasksScreen(
-                patientId = patientId,
-                patientName = patientName,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        // ✅ FIXED: Configured the Route to accept Query Parameters safely
-        composable(
-            route = "prescriptions?patientId={patientId}&patientName={patientName}&doctorId={doctorId}&isDoctor={isDoctor}",
-            arguments = listOf(
-                navArgument("patientId") { type = NavType.StringType; defaultValue = "" },
-                navArgument("patientName") { type = NavType.StringType; defaultValue = "" },
-                navArgument("doctorId") { type = NavType.StringType; defaultValue = "" },
-                navArgument("isDoctor") { type = NavType.BoolType; defaultValue = false }
-            )
-        ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.getString("patientId") ?: ""
-            val patientName = backStackEntry.arguments?.getString("patientName") ?: ""
-            val doctorId = backStackEntry.arguments?.getString("doctorId") ?: ""
-            val isDoctor = backStackEntry.arguments?.getBoolean("isDoctor") ?: false
-
-            com.healthoracle.presentation.doctor.PrescriptionScreen(
-                patientId = patientId,
-                patientName = patientName,
-                doctorId = doctorId,
-                isDoctor = isDoctor,
-                onNavigateBack = { navController.popBackStack() }
-            )
+                ChatScreen(
+                    contactName = back.arguments?.getString("contactName") ?: "",
+                    contactProfileUrl = contactProfileUrl,
+                    currentUserId = chatViewModel.currentUserId,
+                    messages = messages,
+                    onSendMessage = { text, imageUri -> chatViewModel.sendMessage(text, imageUri) },
+                    onNavigateBack = { navController.popBackStack() },
+                    viewModel = chatViewModel
+                )
+            }
+            composable(
+                route     = Screen.PatientTasks.route,
+                arguments = listOf(
+                    navArgument("patientId")   { type = NavType.StringType },
+                    navArgument("patientName") { type = NavType.StringType }
+                )
+            ) { back ->
+                PatientTasksScreen(
+                    patientId   = back.arguments?.getString("patientId") ?: "",
+                    patientName = back.arguments?.getString("patientName") ?: "",
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route     = Screen.Prescriptions.route,
+                arguments = listOf(
+                    navArgument("patientId") { type = NavType.StringType },
+                    navArgument("doctorId")  { type = NavType.StringType }
+                )
+            ) { back ->
+                PrescriptionScreen(
+                    patientId = back.arguments?.getString("patientId") ?: "",
+                    doctorId = back.arguments?.getString("doctorId") ?: "",
+                    patientName = "",
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }

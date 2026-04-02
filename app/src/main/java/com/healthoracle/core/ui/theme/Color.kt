@@ -2,33 +2,48 @@ package com.healthoracle.core.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ── Brand / Primary ──────────────────────────────────────────────────────────
-val PrimaryTeal        = Color(0xFF0B877D)   // main brand teal
-val PrimaryTealLight   = Color(0xFF33A69D)
-val PrimaryTealDark    = Color(0xFF00605A)
+// ── Brand Primary (Indigo/Violet gradient family) ─────────────────────────────
+val Primary           = Color(0xFF6366F1)   // indigo-500
+val PrimaryLight      = Color(0xFF818CF8)   // indigo-400
+val PrimaryDark       = Color(0xFF4F46E5)   // indigo-600
+val PrimaryContainer  = Color(0xFF1E1B4B)   // very dark indigo
 
-// ── Tertiary (gradient partner in hero banner) ───────────────────────────────
-val TertiaryIndigo     = Color(0xFF4B5FD6)
-val TertiaryIndigoDark = Color(0xFF3448C5)
+// ── Secondary Accent: Teal/Cyan ───────────────────────────────────────────────
+val Teal              = Color(0xFF22D3EE)
+val TealDark          = Color(0xFF0EA5E9)
+val TealContainer     = Color(0xFF0C2A3A)
 
-// ── Semantic accent palette (cards) ─────────────────────────────────────────
-val AccentRose         = Color(0xFFD64B6A)
-val AccentAmber        = Color(0xFFE8A020)
-val AccentViolet       = Color(0xFF7C4DCC)
-val AccentGreen        = Color(0xFF29845A)
-val AccentSky          = Color(0xFF1B8FC5)
+// ── Semantic Accents ──────────────────────────────────────────────────────────
+val AccentRose        = Color(0xFFFB7185)
+val AccentAmber       = Color(0xFFFBBF24)
+val AccentGreen       = Color(0xFF34D399)
+val AccentViolet      = Color(0xFFA78BFA)
+val AccentSky         = Color(0xFF38BDF8)
 
-// ── Neutral surfaces ─────────────────────────────────────────────────────────
-// Light theme
-val LightBackground        = Color(0xFFF4F6FB)   // very slightly cool white
-val LightSurface           = Color(0xFFFFFFFF)
-val LightSurfaceVariant    = Color(0xFFECF0F6)
-val LightPrimaryContainer  = Color(0xFFD0EDE9)
-val LightOnPrimaryContainer= Color(0xFF002924)
+// ── Dark Theme Surfaces ───────────────────────────────────────────────────────
+val DarkBackground    = Color(0xFF0A0E1A)   // deepest navy-black
+val DarkSurface       = Color(0xFF111827)   // card surface
+val DarkSurfaceVar    = Color(0xFF161F30)   // slightly lifted card
+val DarkSurface2      = Color(0xFF1B2640)   // hover/pressed state
+val DarkOutline       = Color(0xFF243048)   // borders
+val DarkOutlineVar    = Color(0xFF1A2535)
 
-// Dark theme
-val DarkBackground         = Color(0xFF0E1115)
-val DarkSurface            = Color(0xFF1A1F27)
-val DarkSurfaceVariant     = Color(0xFF242C38)
-val DarkPrimaryContainer   = Color(0xFF00504A)
-val DarkOnPrimaryContainer = Color(0xFF9CECE3)
+// ── Light Theme Surfaces ──────────────────────────────────────────────────────
+val LightBackground   = Color(0xFFF0F4FF)
+val LightSurface      = Color(0xFFFFFFFF)
+val LightSurfaceVar   = Color(0xFFEEF2FF)   // indigo-50
+val LightSurface2     = Color(0xFFE0E7FF)   // indigo-100
+val LightOutline      = Color(0xFFC7D2FE)   // indigo-200
+val LightOutlineVar   = Color(0xFFE0E7FF)
+
+// ── Text on Dark ─────────────────────────────────────────────────────────────
+val DarkOnBg          = Color(0xFFE8EDF8)
+val DarkOnSurface     = Color(0xFFD4DAF0)
+val DarkOnSurfaceVar  = Color(0xFF8896B0)
+val DarkOnPrimary     = Color(0xFFFFFFFF)
+
+// ── Text on Light ─────────────────────────────────────────────────────────────
+val LightOnBg         = Color(0xFF0F172A)
+val LightOnSurface    = Color(0xFF1E293B)
+val LightOnSurfaceVar = Color(0xFF475569)
+val LightOnPrimary    = Color(0xFFFFFFFF)

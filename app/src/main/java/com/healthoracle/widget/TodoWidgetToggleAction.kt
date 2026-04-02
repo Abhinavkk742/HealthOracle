@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.updateAll
 import androidx.room.Room
 import com.healthoracle.HealthOracleApp
 import com.healthoracle.data.local.AppDatabase
@@ -63,7 +62,8 @@ class TodoWidgetToggleAction : ActionCallback {
             TodoWidget().update(context, glanceId)
             
             // Also update all others just in case
-            TodoWidget().updateAll(context)
+            Log.d(TAG, "Refreshing widget instances...")
+            TodoWidgetUpdater.refreshNow(context)
             Log.d(TAG, "Widget refreshed")
 
         } catch (e: Exception) {

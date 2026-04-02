@@ -4,64 +4,33 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.rounded.ArrowForwardIos
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.healthoracle.presentation.profile.ProfileViewModel
+import com.healthoracle.core.dashboard.*
+import com.healthoracle.core.ui.components.*
+import com.healthoracle.core.ui.theme.*
 import java.util.Calendar
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DATA MODELS (local to this screen — no logic change)
-// ─────────────────────────────────────────────────────────────────────────────
-
-private data class FeatureCard(
-    val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
-    val accentColor: Color,
-    val onClick: () -> Unit
-)
-
-private data class SectionData(
-    val heading: String,
-    val cards: List<FeatureCard>
-)
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GREETING HELPER
-// ─────────────────────────────────────────────────────────────────────────────
-
-private fun getGreeting(): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when (hour) {
-        in 5..11  -> "Good morning"
-        in 12..16 -> "Good afternoon"
-        in 17..20 -> "Good evening"
-        else      -> "Good night"
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN SCREEN  (all navigation params / ViewModel kept identical)
+// HOME SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,510 +46,732 @@ fun HomeScreen(
     onNavigateToTodo: () -> Unit,
     onNavigateToPrescriptions: (patientId: String, doctorId: String) -> Unit,
     onNavigateToChat: (patientId: String, doctorId: String, contactName: String) -> Unit,
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val profileState by viewModel.uiState.collectAsState()
-    val profile = profileState.profile
-
-    // ── Define accent colors per feature (not random — health-semantic) ──────
-    val teal   = Color(0xFF0B877D)
-    val indigo = Color(0xFF4B5FD6)
-    val amber  = Color(0xFFE8A020)
-    val rose   = Color(0xFFD64B6A)
-    val violet = Color(0xFF7C4DCC)
-    val green  = Color(0xFF29845A)
-    val sky    = Color(0xFF1B8FC5)
-
-    val sections = listOf(
-        SectionData(
-            heading = "Health Diagnostics",
-            cards = listOf(
-                FeatureCard("Skin Disease Scanner", "AI-powered visual diagnosis", Icons.Default.CameraAlt,     rose,   onNavigateToSkinDisease),
-                FeatureCard("Diabetes Risk Check",  "Assess your health metrics",  Icons.Default.MonitorHeart, indigo, onNavigateToDiabetes)
-            )
-        ),
-        SectionData(
-            heading = "Fitness",
-            cards = listOf(
-                FeatureCard("Walk Tracker", "GPS-mapped walks & history", Icons.Default.DirectionsWalk, green, onNavigateToWalkTracker)
-            )
-        ),
-        SectionData(
-            heading = "My Data",
-            cards = listOf(
-                FeatureCard("Health History",     "Saved AI plans & results",         Icons.Default.History,      teal,   onNavigateToHistory),
-                FeatureCard("Appointments",       "Manage health appointments",        Icons.Default.DateRange,    sky,    onNavigateToCalendar),
-                FeatureCard("Today's Tasks",      "Calendar to-do list for today",     Icons.Default.CheckCircle,  amber,  onNavigateToTodo),
-                FeatureCard("My Prescriptions",   "View prescriptions from doctor",    Icons.Default.Description,  violet) {
-                    onNavigateToPrescriptions(profile.uid, profile.assignedDoctorId ?: "none")
-                }
-            )
-        ),
-        SectionData(
-            heading = "Community",
-            cards = listOf(
-                FeatureCard("Community Forum", "Connect, share & learn", Icons.Default.Forum, green, onNavigateToForum)
-            )
-        )
-    )
+    val state by viewModel.uiState.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            HomeTopBar(
-                name         = profile.name,
-                avatarUrl    = profile.profilePictureUrl,
-                onAvatarClick = onNavigateToProfile
-            )
-        },
         floatingActionButton = {
-            // Preserved exactly — only visible when patient has assigned doctor
-            if (profile.role == "patient" && !profile.assignedDoctorId.isNullOrEmpty()) {
-                AnimatedVisibility(
-                    visible = true,
-                    enter   = scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn()
-                ) {
-                    ExtendedFloatingActionButton(
-                        onClick = {
-                            onNavigateToChat(profile.uid, profile.assignedDoctorId!!, "My Doctor")
-                        },
-                        icon = {
-                            Icon(Icons.Default.Chat, contentDescription = null)
-                        },
-                        text = {
-                            Text("Message Doctor", fontWeight = FontWeight.SemiBold)
-                        },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor   = MaterialTheme.colorScheme.onPrimary,
-                        modifier       = Modifier.shadow(8.dp, RoundedCornerShape(50))
-                    )
-                }
+            // Chat FAB preserved — only shown when patient has assigned doctor
+            val p = state.profile
+            if (p.role == "patient" && !p.assignedDoctorId.isNullOrEmpty()) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToChat(p.uid, p.assignedDoctorId!!, "My Doctor") },
+                    icon    = { Icon(Icons.Default.Chat, contentDescription = null) },
+                    text    = { Text("Chat", fontWeight = FontWeight.SemiBold) },
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             }
         }
-    ) { innerPadding ->
+    ) { padding ->
+        if (state.isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+            return@Scaffold
+        }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
+            // ── Hero Header ───────────────────────────────────────────────────
+            HeroHeader(
+                name      = state.profile.name,
+                avatarUrl = state.profile.profilePictureUrl,
+                onAvatar  = onNavigateToProfile
+            )
 
-            // ── Hero greeting banner ─────────────────────────────────────
-            HeroBanner(name = profile.name.ifBlank { "there" })
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ── Quick-stats strip ────────────────────────────────────────
-            QuickStatStrip()
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ── Feature sections ─────────────────────────────────────────
-            sections.forEach { section ->
-                FeatureSection(section = section)
-                Spacer(modifier = Modifier.height(8.dp))
+            // ── Health Score Card ─────────────────────────────────────────────
+            state.healthScore?.let { score ->
+                HealthScoreCard(
+                    score     = score,
+                    data      = state.healthData,
+                    modifier  = Modifier.padding(horizontal = 16.dp)
+                )
             }
 
-            Spacer(modifier = Modifier.height(96.dp)) // FAB clearance
+            Spacer(Modifier.height(24.dp))
+
+            // ── Streak Banner ─────────────────────────────────────────────────
+            if (state.streakDays >= 2) {
+                StreakBanner(days = state.streakDays, modifier = Modifier.padding(horizontal = 16.dp))
+                Spacer(Modifier.height(20.dp))
+            }
+
+            // ── Smart Insights ────────────────────────────────────────────────
+            if (state.insights.isNotEmpty()) {
+                SectionHeader(
+                    title       = "Smart Insights",
+                    actionLabel = "See all",
+                    modifier    = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(Modifier.height(12.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding        = PaddingValues(horizontal = 16.dp)
+                ) {
+                    items(state.insights) { insight ->
+                        val color = insightColor(insight.accentColorKey)
+                        InsightChip(
+                            emoji       = insight.emoji,
+                            message     = insight.message,
+                            highlight   = insight.highlight,
+                            accentColor = color,
+                            onClick     = {}
+                        )
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+
+            // ── Today's Metrics Grid ──────────────────────────────────────────
+            SectionHeader(
+                title       = "Today's Metrics",
+                actionLabel = "Goals →",
+                modifier    = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+            MetricsGrid(
+                data              = state.healthData,
+                onSteps           = onNavigateToWalkTracker,
+                onWater           = {},
+                onSleep           = {},
+                onMood            = {},
+                modifier          = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(Modifier.height(24.dp))
+
+            // ── Mood Logger ───────────────────────────────────────────────────
+            MoodLogger(
+                currentMood = state.healthData.moodScore,
+                onSelect    = viewModel::logMood,
+                modifier    = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(Modifier.height(24.dp))
+
+            // ── Weekly Chart ──────────────────────────────────────────────────
+            SectionHeader(
+                title    = "Weekly Steps",
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+            WeeklyStepsChart(modifier = Modifier.padding(horizontal = 16.dp))
+            Spacer(Modifier.height(24.dp))
+
+            // ── Feature Tiles ─────────────────────────────────────────────────
+            SectionHeader(
+                title    = "Health Tools",
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+            FeatureTilesGrid(
+                onSkinDisease   = onNavigateToSkinDisease,
+                onDiabetes      = onNavigateToDiabetes,
+                onWalkTracker   = onNavigateToWalkTracker,
+                onCalendar      = onNavigateToCalendar,
+                onHistory       = onNavigateToHistory,
+                onTodo          = onNavigateToTodo,
+                onForum         = onNavigateToForum,
+                onPrescriptions = {
+                    onNavigateToPrescriptions(
+                        state.profile.uid,
+                        state.profile.assignedDoctorId ?: "none"
+                    )
+                },
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(Modifier.height(80.dp)) // FAB clearance
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOP BAR
+// HERO HEADER
 // ─────────────────────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeTopBar(
+private fun HeroHeader(
     name: String,
     avatarUrl: String?,
-    onAvatarClick: () -> Unit
+    onAvatar: () -> Unit
 ) {
-    TopAppBar(
-        title = {
-            Text(
-                text = "HealthOracle",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp
-                ),
-                color = MaterialTheme.colorScheme.primary
+    val hour     = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    val greeting = when (hour) {
+        in 5..11  -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        in 17..20 -> "Good evening"
+        else      -> "Good night"
+    }
+    val firstName = name.split(" ").firstOrNull() ?: name
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.07f),
+                        MaterialTheme.colorScheme.background
+                    )
+                )
             )
-        },
-        actions = {
-            // Notification bell placeholder
-            IconButton(onClick = { /* future: notifications */ }) {
-                Icon(
-                    imageVector     = Icons.Outlined.Notifications,
-                    contentDescription = "Notifications",
-                    tint            = MaterialTheme.colorScheme.onSurfaceVariant
+            .padding(horizontal = 20.dp, vertical = 20.dp)
+    ) {
+        Row(
+            modifier          = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text  = greeting,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text       = "$firstName ✦",
+                    style      = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color      = MaterialTheme.colorScheme.onBackground
                 )
             }
 
-            // Avatar
-            IconButton(onClick = onAvatarClick) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(MaterialTheme.colorScheme.primary, AccentViolet)
+                        )
+                    )
+                    .clickable(onClick = onAvatar)
+                    .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
                 if (!avatarUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model              = avatarUrl,
-                        contentDescription = "Profile",
-                        modifier           = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                        contentDescription = "Avatar",
+                        modifier           = Modifier.fillMaxSize(),
                         contentScale       = ContentScale.Crop
                     )
                 } else {
-                    Box(
-                        modifier        = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Text(
+                        text       = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                        style      = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color      = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEALTH SCORE CARD
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun HealthScoreCard(
+    score: HealthScore,
+    data: DailyHealthData,
+    modifier: Modifier = Modifier
+) {
+    GradientCard(
+        modifier       = modifier.fillMaxWidth(),
+        gradientColors = listOf(Color(0xFF1E1B4B), Color(0xFF13172E)),
+        borderColor    = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment     = Alignment.Top
+            ) {
+                Column {
+                    Text(
+                        text          = "HEALTH SCORE",
+                        style         = MaterialTheme.typography.labelSmall,
+                        color         = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text  = score.label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    val deltaSign  = if (score.delta >= 0) "↑ +${score.delta}" else "↓ ${score.delta}"
+                    val deltaColor = if (score.delta >= 0) AccentGreen else AccentRose
+                    Text(
+                        text  = "$deltaSign pts from yesterday",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = deltaColor
+                    )
+                }
+
+                CircularProgressRing(
+                    progress        = score.total / 100f,
+                    size            = 96.dp,
+                    strokeWidth     = 8.dp,
+                    progressColors  = listOf(Primary, Teal)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text  = name.firstOrNull()?.uppercaseChar()?.toString() ?: "U",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.Bold
+                            text       = "${score.total}",
+                            style      = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color      = Color(0xFFA5B4FC)
+                        )
+                        Text(
+                            text  = "/ 100",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(4.dp))
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background
-        )
-    )
+
+            Spacer(Modifier.height(16.dp))
+
+            // Metric mini chips row
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MetricChip(
+                    icon       = "👟",
+                    value      = data.steps.formatK(),
+                    label      = "steps",
+                    valueColor = PrimaryLight,
+                    modifier   = Modifier.weight(1f)
+                )
+                MetricChip(
+                    icon       = "💧",
+                    value      = "${data.waterGlasses}/${data.waterGoal}",
+                    label      = "glasses",
+                    valueColor = Teal,
+                    modifier   = Modifier.weight(1f)
+                )
+                MetricChip(
+                    icon       = "🌙",
+                    value      = if (data.sleepHours > 0f) "${data.sleepHours}h" else "--",
+                    label      = "sleep",
+                    valueColor = AccentViolet,
+                    modifier   = Modifier.weight(1f)
+                )
+                MetricChip(
+                    icon       = "😊",
+                    value      = moodLabel(data.moodScore),
+                    label      = "mood",
+                    valueColor = AccentAmber,
+                    modifier   = Modifier.weight(1f)
+                )
+            }
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HERO BANNER
+// STREAK BANNER
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun HeroBanner(name: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.85f)
-                    )
-                )
-            )
-            .padding(horizontal = 24.dp, vertical = 28.dp)
+private fun StreakBanner(days: Int, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape    = RoundedCornerShape(16.dp),
+        color    = AccentAmber.copy(alpha = 0.1f),
+        border   = BorderStroke(0.5.dp, AccentAmber.copy(alpha = 0.3f))
     ) {
-        Column {
-            Text(
-                text  = "${getGreeting()},",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.80f)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text       = name.split(" ").firstOrNull() ?: name,
-                style      = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color      = MaterialTheme.colorScheme.onPrimary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text  = "How are you feeling today?",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
+        Row(
+            modifier          = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("🔥", fontSize = 28.sp)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text       = "$days-day streak!",
+                    style      = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color      = AccentAmber
+                )
+                Text(
+                    text  = "You've logged health data $days days in a row",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector        = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint               = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-
-        // Decorative circle — purely visual
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .align(Alignment.CenterEnd)
-                .offset(x = 24.dp, y = (-8).dp)
-                .background(
-                    color = Color.White.copy(alpha = 0.08f),
-                    shape = CircleShape
-                )
-        )
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .align(Alignment.BottomEnd)
-                .offset(x = 8.dp, y = 24.dp)
-                .background(
-                    color = Color.White.copy(alpha = 0.06f),
-                    shape = CircleShape
-                )
-        )
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// QUICK STAT STRIP  (static display — add ViewModel data when available)
+// METRICS GRID
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun QuickStatStrip() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        QuickStatChip(
-            label    = "Steps",
-            value    = "—",
-            icon     = Icons.Default.DirectionsWalk,
-            modifier = Modifier.weight(1f)
-        )
-        QuickStatChip(
-            label    = "Active",
-            value    = "—",
-            icon     = Icons.Default.FitnessCenter,
-            modifier = Modifier.weight(1f)
-        )
-        QuickStatChip(
-            label    = "Tasks",
-            value    = "—",
-            icon     = Icons.Default.CheckCircle,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun QuickStatChip(
-    label: String,
-    value: String,
-    icon: ImageVector,
+private fun MetricsGrid(
+    data: DailyHealthData,
+    onSteps: () -> Unit,
+    onWater: () -> Unit,
+    onSleep: () -> Unit,
+    onMood: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier,
-        shape    = RoundedCornerShape(16.dp),
-        colors   = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier            = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector        = icon,
-                contentDescription = null,
-                tint               = MaterialTheme.colorScheme.primary,
-                modifier           = Modifier.size(20.dp)
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricCard(
+                icon       = "👟",
+                title      = "Steps",
+                value      = data.steps.formatK(),
+                goal       = data.stepGoal.formatK(),
+                progress   = data.steps.toFloat() / data.stepGoal,
+                barColor   = Primary,
+                trend      = "+12%",
+                trendUp    = true,
+                onClick    = onSteps,
+                modifier   = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            MetricCard(
+                icon       = "💧",
+                title      = "Water",
+                value      = "${data.waterGlasses}",
+                goal       = "${data.waterGoal} glasses",
+                progress   = data.waterGlasses.toFloat() / data.waterGoal,
+                barColor   = Teal,
+                trend      = if (data.waterGlasses < data.waterGoal) "↓ behind" else "✓ done",
+                trendUp    = data.waterGlasses >= data.waterGoal,
+                onClick    = onWater,
+                modifier   = Modifier.weight(1f)
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricCard(
+                icon       = "🌙",
+                title      = "Sleep",
+                value      = if (data.sleepHours > 0f) "${"%.1f".format(data.sleepHours)}h" else "--",
+                goal       = "${data.sleepGoal.toInt()}h goal",
+                progress   = if (data.sleepGoal > 0f) data.sleepHours / data.sleepGoal else 0f,
+                barColor   = AccentViolet,
+                trend      = if (data.sleepHours >= data.sleepGoal) "✓ great" else "↓ low",
+                trendUp    = data.sleepHours >= data.sleepGoal,
+                onClick    = onSleep,
+                modifier   = Modifier.weight(1f)
+            )
+            MetricCard(
+                icon       = "😊",
+                title      = "Mood",
+                value      = moodEmoji(data.moodScore),
+                goal       = moodLabel(data.moodScore),
+                progress   = data.moodScore / 5f,
+                barColor   = AccentAmber,
+                trend      = "→ Stable",
+                trendUp    = null,
+                onClick    = onMood,
+                modifier   = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetricCard(
+    icon: String,
+    title: String,
+    value: String,
+    goal: String,
+    progress: Float,
+    barColor: Color,
+    trend: String,
+    trendUp: Boolean?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    GlassCard(
+        modifier  = modifier,
+        onClick   = onClick,
+        glowColor = barColor
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                Text(icon, fontSize = 20.sp)
+                val trendColor = when (trendUp) {
+                    true  -> AccentGreen
+                    false -> AccentRose
+                    null  -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = trendColor.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text     = trend,
+                        style    = MaterialTheme.typography.labelSmall,
+                        color    = trendColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
             Text(
                 text       = value,
-                style      = MaterialTheme.typography.titleSmall,
+                style      = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color      = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text  = label,
+                text  = title,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text  = "Goal: $goal",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+            Spacer(Modifier.height(10.dp))
+            AnimatedProgressBar(
+                progress   = progress,
+                color      = barColor,
+                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
             )
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FEATURE SECTION
+// MOOD LOGGER
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun FeatureSection(section: SectionData) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-    ) {
-        // Section header
-        Text(
-            text       = section.heading,
-            style      = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color      = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 0.8.sp,
-            modifier   = Modifier.padding(start = 4.dp, bottom = 12.dp)
-        )
-
-        // Grid or list depending on count
-        if (section.cards.size == 2) {
-            // Side-by-side compact cards
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier              = Modifier.fillMaxWidth()
-            ) {
-                section.cards.forEach { card ->
-                    CompactFeatureCard(card = card, modifier = Modifier.weight(1f))
-                }
-            }
-        } else {
-            // Full-width list cards
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                section.cards.forEach { card ->
-                    ListFeatureCard(card = card)
-                }
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPACT FEATURE CARD  (used when 2 cards sit side-by-side)
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun CompactFeatureCard(
-    card: FeatureCard,
+private fun MoodLogger(
+    currentMood: Int,
+    onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var pressed by remember { mutableStateOf(false) }
-    val elevation by animateDpAsState(
-        targetValue  = if (pressed) 0.dp else 3.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label        = "cardElevation"
-    )
+    val moods = listOf("😞" to "Rough", "😐" to "Meh", "😊" to "Good", "😄" to "Great", "🤩" to "Amazing")
 
-    ElevatedCard(
-        modifier  = modifier
-            .clickable(
-                onClick     = card.onClick,
-                onClickLabel = card.title
-            ),
-        shape     = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = elevation),
-        colors    = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Icon badge
-            Box(
-                modifier         = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(card.accentColor.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
+    GlassCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text       = "How are you feeling today?",
+                style      = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color      = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector        = card.icon,
-                    contentDescription = null,
-                    tint               = card.accentColor,
-                    modifier           = Modifier.size(22.dp)
-                )
-            }
-
-            Column {
-                Text(
-                    text       = card.title,
-                    style      = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color      = MaterialTheme.colorScheme.onSurface,
-                    maxLines   = 2,
-                    overflow   = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text     = card.subtitle,
-                    style    = MaterialTheme.typography.bodySmall,
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                moods.forEachIndexed { index, (emoji, label) ->
+                    val score    = index + 1
+                    val selected = currentMood == score
+                    val scale by animateFloatAsState(
+                        targetValue   = if (selected) 1.1f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label         = "moodScale$index"
+                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier            = Modifier
+                            .graphicsLayer { scaleX = scale; scaleY = scale }
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (selected) AccentAmber.copy(alpha = 0.15f)
+                                else MaterialTheme.colorScheme.outline.copy(alpha = 0.07f)
+                            )
+                            .border(
+                                width = if (selected) 1.dp else 0.5.dp,
+                                color = if (selected) AccentAmber.copy(alpha = 0.5f)
+                                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(14.dp)
+                            )
+                            .clickable { onSelect(score) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                    ) {
+                        Text(emoji, fontSize = 22.sp)
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text  = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (selected) AccentAmber
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LIST FEATURE CARD  (full-width row card)
+// WEEKLY STEPS CHART
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ListFeatureCard(card: FeatureCard) {
-    var pressed by remember { mutableStateOf(false) }
-    val elevation by animateDpAsState(
-        targetValue  = if (pressed) 0.dp else 2.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label        = "listCardElevation"
+private fun WeeklyStepsChart(modifier: Modifier = Modifier) {
+    // Placeholder data — in production wire up from Room / Firestore
+    val days = listOf(
+        DayBarData("Mon", 0.72f),
+        DayBarData("Tue", 0.53f),
+        DayBarData("Wed", 0.88f),
+        DayBarData("Thu", 0.61f),
+        DayBarData("Fri", 0.79f),
+        DayBarData("Sat", 0.45f),
+        DayBarData("Today", 0.66f, isToday = true)
     )
 
-    ElevatedCard(
-        modifier  = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = card.onClick, onClickLabel = card.title),
-        shape     = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = elevation),
-        colors    = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier            = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment   = Alignment.CenterVertically
-        ) {
-            // Coloured icon badge
-            Box(
-                modifier         = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(card.accentColor.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector        = card.icon,
-                    contentDescription = null,
-                    tint               = card.accentColor,
-                    modifier           = Modifier.size(24.dp)
-                )
+    GlassCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            WeeklyBarChart(data = days, modifier = Modifier.height(80.dp))
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE TILES GRID  (2-column, preserving all original navigation targets)
+// ─────────────────────────────────────────────────────────────────────────────
+
+private data class FeatureTile(
+    val emoji: String,
+    val title: String,
+    val subtitle: String,
+    val gradientColors: List<Color>,
+    val badge: String? = null,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun FeatureTilesGrid(
+    onSkinDisease: () -> Unit,
+    onDiabetes: () -> Unit,
+    onWalkTracker: () -> Unit,
+    onCalendar: () -> Unit,
+    onHistory: () -> Unit,
+    onTodo: () -> Unit,
+    onForum: () -> Unit,
+    onPrescriptions: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tiles = listOf(
+        FeatureTile("🔬", "Skin Scanner", "AI visual diagnosis",
+            listOf(Color(0xFF4C0519), Color(0xFF881337)), "TFLite", onSkinDisease),
+        FeatureTile("❤️", "Diabetes Check", "Risk assessment",
+            listOf(Color(0xFF1E1B4B), Color(0xFF312E81)), "AI", onDiabetes),
+        FeatureTile("🗺️", "Walk Tracker", "GPS route & history",
+            listOf(Color(0xFF064E3B), Color(0xFF065F46)), "GPS", onWalkTracker),
+        FeatureTile("📅", "Appointments", "Schedule & reminders",
+            listOf(Color(0xFF0C4A6E), Color(0xFF075985)), null, onCalendar),
+        FeatureTile("📋", "Health History", "Past AI reports",
+            listOf(Color(0xFF1C1917), Color(0xFF292524)), null, onHistory),
+        FeatureTile("✅", "Today's Tasks", "Daily to-do list",
+            listOf(Color(0xFF1A1306), Color(0xFF2D1E08)), null, onTodo),
+        FeatureTile("💊", "Prescriptions", "From your doctor",
+            listOf(Color(0xFF0F172A), Color(0xFF1E293B)), null, onPrescriptions),
+        FeatureTile("💬", "Community", "Connect & share",
+            listOf(Color(0xFF042F2E), Color(0xFF064E3B)), null, onForum)
+    )
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        tiles.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { tile ->
+                    FeatureTileItem(tile = tile, modifier = Modifier.weight(1f))
+                }
+                // Fill empty slot in last row if odd count
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+@Composable
+private fun FeatureTileItem(tile: FeatureTile, modifier: Modifier = Modifier) {
+    GradientCard(
+        modifier       = modifier,
+        gradientColors = tile.gradientColors,
+        onClick        = tile.onClick,
+        shape          = RoundedCornerShape(18.dp)
+    ) {
+        Box(modifier = Modifier.padding(16.dp)) {
+            tile.badge?.let { badge ->
+                Surface(
+                    modifier = Modifier.align(Alignment.TopEnd),
+                    shape    = RoundedCornerShape(8.dp),
+                    color    = Color.White.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text     = badge,
+                        style    = MaterialTheme.typography.labelSmall,
+                        color    = Color.White,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            Column {
+                Text(tile.emoji, fontSize = 26.sp)
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    text       = card.title,
-                    style      = MaterialTheme.typography.bodyLarge,
+                    text       = tile.title,
+                    style      = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color      = MaterialTheme.colorScheme.onSurface
+                    color      = Color.White,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text     = card.subtitle,
-                    style    = MaterialTheme.typography.bodySmall,
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text     = tile.subtitle,
+                    style    = MaterialTheme.typography.labelSmall,
+                    color    = Color.White.copy(alpha = 0.65f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
-            Icon(
-                imageVector        = Icons.Rounded.ArrowForwardIos,
-                contentDescription = "Open",
-                tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier           = Modifier.size(14.dp)
-            )
         }
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+private fun Int.formatK(): String =
+    if (this >= 1_000) "${this / 1_000}.${(this % 1_000) / 100}k" else "$this"
+
+private fun moodLabel(score: Int) = when (score) {
+    1 -> "Rough"; 2 -> "Meh"; 3 -> "Good"; 4 -> "Great"; 5 -> "Amazing"; else -> "Not logged"
+}
+
+private fun moodEmoji(score: Int) = when (score) {
+    1 -> "😞"; 2 -> "😐"; 3 -> "😊"; 4 -> "😄"; 5 -> "🤩"; else -> "--"
+}
+
+@Composable
+private fun insightColor(key: InsightColor): Color = when (key) {
+    InsightColor.BLUE  -> MaterialTheme.colorScheme.primary
+    InsightColor.GREEN -> AccentGreen
+    InsightColor.AMBER -> AccentAmber
+    InsightColor.ROSE  -> AccentRose
 }

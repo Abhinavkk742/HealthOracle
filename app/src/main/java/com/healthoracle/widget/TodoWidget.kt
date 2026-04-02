@@ -141,27 +141,35 @@ private fun TodoWidgetRow(todo: TodoEntity) {
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Simpler, circular tick box
+        // Minimal outlined tick style for better readability on small widgets
+        // Using nested Boxes as Glance does not support a direct border modifier in version 1.1.0
         Box(
             modifier = GlanceModifier
-                .size(20.dp)
-                .cornerRadius(10.dp)
+                .size(18.dp)
+                .cornerRadius(9.dp)
                 .background(
-                    ColorProvider(
-                        if (todo.isDone) Color(0xFF00BD6D) else Color(0xFFE1E2E4)
-                    )
+                    ColorProvider(if (todo.isDone) Color(0xFF00A85E) else Color(0xFFB9BCC2))
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (todo.isDone) {
-                Text(
-                    text = "✓",
-                    style = TextStyle(
-                        fontSize = 12.sp,
-                        color = ColorProvider(Color.White),
-                        fontWeight = FontWeight.Bold
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxSize()
+                    .padding(1.5.dp)
+                    .cornerRadius(8.dp)
+                    .background(ColorProvider(Color(0xFFFDFDFD))),
+                contentAlignment = Alignment.Center
+            ) {
+                if (todo.isDone) {
+                    Text(
+                        text = "✓",
+                        style = TextStyle(
+                            fontSize = 10.sp,
+                            color = ColorProvider(Color(0xFF00A85E)),
+                            fontWeight = FontWeight.Medium
+                        )
                     )
-                )
+                }
             }
         }
 
