@@ -12,9 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,37 +33,32 @@ fun CreatePostScreen(
     onNavigateBack: () -> Unit,
     viewModel: ForumViewModel = hiltViewModel()
 ) {
-    var title by remember { mutableStateOf("") }
-    var content by remember { mutableStateOf("") }
-
-    // NEW: List of URIs to support multiple images
-    var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var title       by remember { mutableStateOf("") }
+    var content     by remember { mutableStateOf("") }
+    var imageUris   by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isUploading by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
+    val scope             = rememberCoroutineScope()
 
-    // Upgraded to PickMultipleVisualMedia
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4),
-        onResult = { uris: List<Uri> ->
-            imageUris = uris
-        }
+        onResult = { uris -> imageUris = uris }
     )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Create Post", fontWeight = FontWeight.Bold) },
+                title = { Text("New Post", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Cancel")
+                        Icon(Icons.Default.Close, contentDescription = "Cancel")
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = {
+                    Button(
+                        onClick  = {
                             if (title.isNotBlank() && content.isNotBlank()) {
                                 isUploading = true
                                 viewModel.createPost(title, content, imageUris) { success, message ->
@@ -72,108 +66,126 @@ fun CreatePostScreen(
                                     if (success) {
                                         onNavigateBack()
                                     } else {
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar(message)
-                                        }
+                                        scope.launch { snackbarHostState.showSnackbar(message) }
                                     }
                                 }
                             } else {
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Please add a title and some content.")
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Please add a title and content.")
                                 }
                             }
                         },
-                        enabled = !isUploading && title.isNotBlank() && content.isNotBlank()
+                        enabled  = !isUploading && title.isNotBlank() && content.isNotBlank(),
+                        shape    = RoundedCornerShape(50),
+                        colors   = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.padding(end = 8.dp)
                     ) {
                         if (isUploading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
+                                modifier    = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
+                                color       = MaterialTheme.colorScheme.onPrimary
                             )
                         } else {
-                            Text("Post", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text("Post", fontWeight = FontWeight.Bold)
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
         ) {
+            // Title field
             OutlinedTextField(
-                value = title,
+                value         = title,
                 onValueChange = { title = it },
-                placeholder = { Text("An interesting title", style = MaterialTheme.typography.titleLarge) },
-                modifier = Modifier.fillMaxWidth(),
+                placeholder   = {
+                    Text(
+                        "An interesting title...",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                },
+                modifier  = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.Transparent,
+                colors     = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor   = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent,
-                    cursorColor = MaterialTheme.colorScheme.primary
+                    cursorColor          = MaterialTheme.colorScheme.primary
                 )
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color    = MaterialTheme.colorScheme.outlineVariant
+            )
 
+            // Body field
             OutlinedTextField(
-                value = content,
+                value         = content,
                 onValueChange = { content = it },
-                placeholder = { Text("What are your thoughts?") },
+                placeholder   = {
+                    Text(
+                        "What are your thoughts?",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .defaultMinSize(minHeight = 150.dp),
-                textStyle = MaterialTheme.typography.bodyLarge,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.Transparent,
+                    .defaultMinSize(minHeight = 160.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                colors   = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor   = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent,
-                    cursorColor = MaterialTheme.colorScheme.primary
+                    cursorColor          = MaterialTheme.colorScheme.primary
                 )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Renders the selected images in a scrolling row
+            // Image previews
             if (imageUris.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
-                    modifier = Modifier
+                    modifier              = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(vertical = 8.dp),
+                        .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     imageUris.forEach { uri ->
-                        Box(modifier = Modifier.width(200.dp)) {
+                        Box(modifier = Modifier.width(180.dp)) {
                             AsyncImage(
-                                model = uri,
-                                contentDescription = "Selected Image",
-                                modifier = Modifier
+                                model              = uri,
+                                contentDescription = null,
+                                modifier           = Modifier
                                     .fillMaxWidth()
-                                    .height(200.dp)
-                                    .clip(RoundedCornerShape(12.dp)),
-                                contentScale = ContentScale.Crop
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(14.dp)),
+                                contentScale       = ContentScale.Crop
                             )
-
                             IconButton(
-                                onClick = { imageUris = imageUris - uri },
+                                onClick  = { imageUris = imageUris - uri },
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .padding(8.dp)
+                                    .padding(6.dp)
+                                    .size(28.dp)
                                     .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.6f))
-                                    .size(32.dp)
+                                    .background(Color.Black.copy(alpha = 0.55f))
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Remove Image",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    Icons.Default.Close, null,
+                                    tint     = Color.White,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
@@ -181,18 +193,31 @@ fun CreatePostScreen(
                 }
             }
 
-            // Add/Change Images Button
+            Spacer(modifier = Modifier.height(12.dp))
+
             OutlinedButton(
-                onClick = {
-                    photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                onClick  = {
+                    photoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
                 },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                shape = RoundedCornerShape(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape    = RoundedCornerShape(12.dp),
+                border   = androidx.compose.foundation.BorderStroke(
+                    1.dp, MaterialTheme.colorScheme.outlineVariant
+                )
             ) {
-                Icon(imageVector = Icons.Default.Image, contentDescription = null)
+                Icon(Icons.Outlined.Image, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (imageUris.isEmpty()) "Attach Images" else "Replace Images")
+                Text(
+                    if (imageUris.isEmpty()) "Attach Images" else "Replace Images",
+                    fontWeight = FontWeight.SemiBold
+                )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

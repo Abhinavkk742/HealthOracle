@@ -3,41 +3,58 @@ package com.healthoracle.core.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryTeal,
-    secondary = SecondaryBlue,
-    background = DarkBackground,
-    surface = DarkSurface,
-    primaryContainer = DarkPrimaryContainer,
-    onPrimaryContainer = DarkOnPrimaryContainer
-)
-
+// ── Light colour scheme ───────────────────────────────────────────────────────
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryTeal,
-    secondary = SecondaryBlue,
-    background = LightBackground,
-    surface = LightSurface,
-    primaryContainer = LightPrimaryContainer,
-    onPrimaryContainer = LightOnPrimaryContainer
+    primary             = PrimaryTeal,
+    onPrimary           = androidx.compose.ui.graphics.Color.White,
+    primaryContainer    = LightPrimaryContainer,
+    onPrimaryContainer  = LightOnPrimaryContainer,
+    tertiary            = TertiaryIndigo,
+    onTertiary          = androidx.compose.ui.graphics.Color.White,
+    background          = LightBackground,
+    onBackground        = androidx.compose.ui.graphics.Color(0xFF0E1115),
+    surface             = LightSurface,
+    onSurface           = androidx.compose.ui.graphics.Color(0xFF1A1F27),
+    surfaceVariant      = LightSurfaceVariant,
+    onSurfaceVariant    = androidx.compose.ui.graphics.Color(0xFF4E5A6A),
+    outline             = androidx.compose.ui.graphics.Color(0xFFBCC4CF),
+    outlineVariant      = androidx.compose.ui.graphics.Color(0xFFD8DDE6),
+    error               = AccentRose
 )
 
+// ── Dark colour scheme ────────────────────────────────────────────────────────
+private val DarkColorScheme = darkColorScheme(
+    primary             = PrimaryTealLight,
+    onPrimary           = androidx.compose.ui.graphics.Color(0xFF002924),
+    primaryContainer    = DarkPrimaryContainer,
+    onPrimaryContainer  = DarkOnPrimaryContainer,
+    tertiary            = TertiaryIndigoDark,
+    onTertiary          = androidx.compose.ui.graphics.Color.White,
+    background          = DarkBackground,
+    onBackground        = androidx.compose.ui.graphics.Color(0xFFE4E8EF),
+    surface             = DarkSurface,
+    onSurface           = androidx.compose.ui.graphics.Color(0xFFD4D8DF),
+    surfaceVariant      = DarkSurfaceVariant,
+    onSurfaceVariant    = androidx.compose.ui.graphics.Color(0xFF8E98A8),
+    outline             = androidx.compose.ui.graphics.Color(0xFF3E4757),
+    outlineVariant      = androidx.compose.ui.graphics.Color(0xFF2E3542),
+    error               = AccentRose
+)
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
 @Composable
 fun HealthOracleTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Set to false to force our custom health colors
+    // Dynamic color disabled to preserve brand palette
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -46,7 +63,7 @@ fun HealthOracleTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        else      -> LightColorScheme
     }
 
     val view = LocalView.current
@@ -60,7 +77,7 @@ fun HealthOracleTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+        typography  = HealthOracleTypography,
+        content     = content
     )
 }
