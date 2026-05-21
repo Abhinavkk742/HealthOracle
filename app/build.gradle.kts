@@ -1,3 +1,11 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE: app/build.gradle.kts  (COMPLETE REPLACEMENT)
+//
+// Changes from original:
+//   • Updated compileSdk and targetSdk to 36 to satisfy Health Connect requirements
+//   • All other deps preserved exactly
+// ─────────────────────────────────────────────────────────────────────────────
+
 import java.util.Properties
 
 plugins {
@@ -19,12 +27,12 @@ val aiApiKey: String = localProperties.getProperty("AI_API_KEY") ?: ""
 
 android {
     namespace = "com.healthoracle"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.healthoracle"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -67,11 +75,15 @@ android {
 dependencies {
     implementation(libs.accompanist.permissions)
     implementation("androidx.core:core-splashscreen:1.0.1")
+
     // Core
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.activity.compose)
+
+    // ✅ Health Connect
+    implementation("androidx.health.connect:connect-client:1.1.0-rc01")
 
     // Compose BOM
     implementation(platform(libs.compose.bom))
@@ -81,9 +93,12 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons)
     debugImplementation(libs.compose.ui.tooling)
+
+    // Glance widget
     implementation("androidx.glance:glance-appwidget:1.1.0")
     implementation("androidx.glance:glance-material3:1.1.0")
-    //Cloudinary photo for posts
+
+    // Cloudinary photo for posts
     implementation("com.cloudinary:cloudinary-android:2.5.0")
 
     // Navigation
@@ -118,19 +133,23 @@ dependencies {
 
     // Coil
     implementation(libs.coil.compose)
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+
+    // Auth
     implementation("com.google.android.gms:play-services-auth:21.0.0")
+
     // DataStore
     implementation(libs.datastore.prefs)
-    implementation("io.coil-kt:coil-compose:2.5.0")
-    // ✅ NEW: Official Google Generative AI SDK
+
+    // Generative AI
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+
+    // Maps / Location
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     implementation("com.google.android.gms:play-services-location:21.3.0")
-
-
 }

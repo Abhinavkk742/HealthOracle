@@ -1,19 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    FILE: app/src/main/AndroidManifest.xml  (COMPLETE REPLACEMENT)
+
+    Changes from original:
+      • Added Health Connect READ permissions (steps, heart_rate, sleep_session)
+      • Added Health Connect availability <queries> block
+      • Added Health Connect rationale <activity> entry
+      All original entries are preserved.
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ── Original permissions ─────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+
+    <!-- ✅ Health Connect READ permissions -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+
+    <!-- ✅ Required so PackageManager can see Health Connect -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+    </queries>
 
     <application
         android:name=".HealthOracleApp"
@@ -37,6 +61,15 @@
             </intent-filter>
         </activity>
 
+        <!-- ✅ Health Connect permission rationale activity -->
+        <activity
+            android:name="androidx.health.connect.client.PermissionController"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -50,6 +83,7 @@
         <receiver
             android:name=".presentation.calendar.AppointmentReceiver"
             android:exported="false" />
+
         <receiver
             android:name="com.healthoracle.widget.TodoWidgetReceiver"
             android:exported="true">
@@ -60,5 +94,6 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/todo_widget_info" />
         </receiver>
+
     </application>
 </manifest>

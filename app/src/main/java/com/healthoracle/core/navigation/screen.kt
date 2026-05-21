@@ -1,3 +1,9 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE: app/src/main/java/com/healthoracle/core/navigation/Screen.kt
+//
+// CHANGE: Added FitnessDashboard and Insights routes.
+// All existing routes are preserved exactly as-is.
+// ─────────────────────────────────────────────────────────────────────────────
 package com.healthoracle.core.navigation
 
 sealed class Screen(val route: String) {
@@ -16,6 +22,10 @@ sealed class Screen(val route: String) {
     data object Forum       : Screen("forum")
     data object Profile     : Screen("profile")
 
+    // ── ✅ NEW: Fitness / Health Connect screens ───────────────────────────────
+    data object FitnessDashboard : Screen("fitness_dashboard")
+    data object Insights         : Screen("insights")
+
     // ── Diagnostics ───────────────────────────────────────────────────────────
     data object SkinDisease : Screen("skin_disease")
     data object Diabetes    : Screen("diabetes")
@@ -25,9 +35,9 @@ sealed class Screen(val route: String) {
     }
 
     // ── My Data ───────────────────────────────────────────────────────────────
-    data object History : Screen("history")
-    data object Todo    : Screen("todo")
-    data object MyPosts : Screen("my_posts")
+    data object History  : Screen("history")
+    data object Todo     : Screen("todo")
+    data object MyPosts  : Screen("my_posts")
     data object Settings : Screen("settings")
 
     // ── Prescriptions ─────────────────────────────────────────────────────────
